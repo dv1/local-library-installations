@@ -1,0 +1,453 @@
+#!/usr/bin/env bash
+
+
+# TODO:
+# - further tests
+# - make it possible to pass extra arguments to ./configure calls
+# - more code reuse (check_gstreamer/check_opus duplicate a lot for example)
+# - what if the version number is omitted? Default version? Error?
+# - support for git checkouts (example: gstreamer=git-abc : clone git repo , use branch "abc" ; gstreamer=git : same, branch defaults to "master")
+# - support for building GLib
+# - rename build_gstreamer () etc. to build_gstreamer-1.0 () to be able to insert other versions
+# - what if the package file itself is present but the checksum one isn't?
+# - make use of optflags
+# - don't use $(pwd) for getting the root path - try to get the script's location instead
+
+
+set -e
+
+
+num_args=$#
+root=$(pwd)
+optflags="-O0 -g3 -ggdb"
+dl_dir="$root/downloads"
+staging_dir="$root/staging"
+installation_dir="$root/installation"
+num_jobs=1
+
+
+# helper to call a function if it exists and return 1 if it doesn't exist
+checked_call_function ()
+{
+	if declare -f "$1" > /dev/null
+	then
+		"$1" "${@:2}" # ${@:2} passes all arguments except the first one to the function specified in $1
+		retval=$?
+		return $retval
+	else
+		return 1
+	fi	
+}
+
+
+# safety wrapper for rm
+# it always expects an option - call it like this: checked_rm <opt> <file1> <file2> ..
+checked_rm ()
+{
+	options="$1"
+	for arg in ${@:2}
+	do
+		filename=$(readlink -f "$arg")
+		filepath=$(dirname "$filename")
+		allowed_filepaths=( \
+			$(readlink -f "$dl_dir") \
+			$(readlink -f "$staging_dir") \
+			$(readlink -f "$installation_dir") \
+		)
+		error=1
+		for allowed_filepath in ${allowed_filepaths[@]}
+		do
+			if [ "$allowed_filepath" == "$filepath" ]
+			then
+				error=0
+				break
+			fi
+		done
+		if [ $error -eq 1 ]
+		then
+			echo "!!!!! FATAL: Caught attempt to delete \"$filename\", which is outside of" \
+				"the list of directories where deleting is allowed"
+			exit -1
+		fi
+	done
+	echo Executing: rm "$options" "${@:2}"
+	rm "$options" "${@:2}"
+}
+
+
+mkdir -p "$dl_dir"
+mkdir -p "$staging_dir"
+mkdir -p "$installation_dir"
+mkdir -p "$installation_dir/bin"
+mkdir -p "$installation_dir/include"
+mkdir -p "$installation_dir/lib/pkgconfig"
+mkdir -p "$installation_dir/share/aclocal"
+
+
+source "$root/env.sh"
+
+
+
+
+
+#######################
+#### GSTREAMER-1.0 ####
+#######################
+
+gst_pkgs=( \
+	"gstreamer" \
+	"gst-plugins-base" \
+	"gst-plugins-good" \
+	"gst-plugins-bad" \
+	"gst-plugins-ugly" \
+	"gst-libav" \
+)
+gst_pkg_source="http://gstreamer.freedesktop.org/src"
+gst_git_source="git://anongit.freedesktop.org/gstreamer"
+gst_pkg_ext="tar.xz"
+gst_pkg_checksum="sha256sum"
+
+fetch_gstreamer ()
+{
+	gst_version=$1
+	for gst_pkg in ${gst_pkgs[@]}
+	do
+		gst_pkg_basename="$gst_pkg-$gst_version"
+		if [ "$gst_version" == "git" ]
+		then
+			gst_git_link="$gst_git_source/$gst_pkg"
+			gst_git_dest="$staging_dir/$gst_pkg_basename"
+			if [ -d "$gst_git_dest" ]
+			then
+				pushd "$gst_git_dest" >/dev/null
+				git pull
+				popd >/dev/null
+			else
+				git clone "$gst_git_link" "$gst_git_dest"
+			fi
+		else
+			gst_pkg_filename="$gst_pkg_basename.$gst_pkg_ext"
+			gst_pkg_link="$gst_pkg_source/$gst_pkg/$gst_pkg_filename"
+			gst_pkg_dest="$dl_dir/$gst_pkg_filename"
+			if [ -f "$gst_pkg_dest" ]
+			then
+				echo "### $gst_pkg_filename present - downloading skipped"
+			else
+				echo "### $gst_pkg_filename not present - downloading from $gst_pkg_link"
+				wget "$gst_pkg_link" -P "$dl_dir"
+				wget "$gst_pkg_link.$gst_pkg_checksum" -P "$dl_dir"
+			fi
+		fi
+	done
+}
+
+check_gstreamer ()
+{
+	gst_version=$1
+	if [ "$gst_version" == "git" ]
+	then
+		return 0
+	fi
+	pushd "$dl_dir" >/dev/null
+	for gst_pkg in ${gst_pkgs[@]}
+	do
+		gst_pkg_basename="$gst_pkg-$gst_version"
+		gst_pkg_filename="$gst_pkg_basename.$gst_pkg_ext"
+		gst_pkg_dest="$dl_dir/$gst_pkg_filename"
+		gst_pkg_dest_checksum="$gst_pkg_dest.$gst_pkg_checksum"
+		if $gst_pkg_checksum -c "$gst_pkg_dest_checksum" --quiet >/dev/null 2>&1
+		then
+			echo "### $gst_pkg_basename $gst_pkg_checksum check : OK"
+		else
+			echo "### $gst_pkg_basename $gst_pkg_checksum check : FAILED"
+			echo "Removing downloaded files for $gst_pkg_basename"
+			checked_rm -f "$gst_pkg_dest" "$gst_pkg_dest_checksum"
+			if [ -d "$staging_dir/$gst_pkg_basename" ]
+			then
+				echo "Removing unpacked content in $staging_dir/$gst_pkg_basename"
+				checked_rm -rf "$staging_dir/$gst_pkg_basename"
+			fi
+			exit 1
+		fi
+	done
+	popd >/dev/null
+}
+
+unpack_gstreamer ()
+{
+	gst_version=$1
+	if [ "$gst_version" == "git" ]
+	then
+		return 0
+	fi
+	pushd "$staging_dir" >/dev/null
+	for gst_pkg in ${gst_pkgs[@]}
+	do
+		gst_pkg_basename="$gst_pkg-$gst_version"
+		gst_pkg_filename="$gst_pkg_basename.$gst_pkg_ext"
+		gst_pkg_full_filename="$dl_dir/$gst_pkg_filename"
+		if [ -d "$gst_pkg_basename" ]
+		then
+			echo "### Directory $staging_dir/$gst_pkg_basename present - unpacking skipped"
+		else
+			echo "### Directory $staging_dir/$gst_pkg_basename no present - unpacking"
+			tar xf "$gst_pkg_full_filename"
+		fi
+	done
+	popd >/dev/null
+}
+
+build_gstreamer ()
+{
+	gst_version=$1
+	for gst_pkg in ${gst_pkgs[@]}
+	do
+		gst_pkg_basename="$gst_pkg-$gst_version" >/dev/null
+		echo "### Building $gst_pkg_basename in $staging_dir/$gst_pkg_basename"
+		pushd "$staging_dir/$gst_pkg_basename"
+		if [ "$gst_version" == "git" ]
+		then
+			./autogen.sh --noconfigure
+		fi
+		./configure "--prefix=$installation_dir"
+		make "-j$num_jobs"
+		make install
+		popd >/dev/null
+	done
+}
+
+
+
+
+
+#############
+#### EFL ####
+#############
+
+efl_pkgs=( \
+	"eina" \
+	"eet" \
+	"evas" \
+	"ecore" \
+	"eio" \
+	"embryo" \
+	"edje" \
+	"efreet" \
+	"e_dbus" \
+	"eeze" \
+	"elementary" \
+	"expedite" \
+	"evas_generic_loaders" \
+	"emotion" \
+)
+efl_pkg_source="http://download.enlightenment.org/releases"
+efl_pkg_ext="tar.bz2"
+
+fetch_efl ()
+{
+	efl_version=$1
+	for efl_pkg in ${efl_pkgs[@]}
+	do
+		efl_pkg_basename="$efl_pkg-$efl_version"
+		efl_pkg_filename="$efl_pkg_basename.$efl_pkg_ext"
+		efl_pkg_link="$efl_pkg_source/$efl_pkg_filename"
+		efl_pkg_dest="$dl_dir/$efl_pkg_filename"
+		if [ -f "$efl_pkg_dest" ]
+		then
+			echo "### $efl_pkg_filename present - downloading skipped"
+		else
+			echo "### $efl_pkg_filename not present - downloading from $efl_pkg_link"
+			wget "$efl_pkg_link" -P "$dl_dir"
+		fi
+	done
+}
+
+check_efl ()
+{
+	return 0
+}
+
+unpack_efl ()
+{
+	efl_version=$1
+	pushd "$staging_dir" >/dev/null
+	for efl_pkg in ${efl_pkgs[@]}
+	do
+		efl_pkg_basename="$efl_pkg-$efl_version"
+		efl_pkg_filename="$efl_pkg_basename.$efl_pkg_ext"
+		efl_pkg_full_filename="$dl_dir/$efl_pkg_filename"
+		if [ -d "$efl_pkg_basename" ]
+		then
+			echo "### Directory $staging_dir/$efl_pkg_basename present - unpacking skipped"
+		else
+			echo "### Directory $staging_dir/$efl_pkg_basename no present - unpacking"
+			tar xf "$efl_pkg_full_filename"
+		fi
+	done
+	popd >/dev/null
+}
+
+build_efl ()
+{
+	efl_version=$1
+	for efl_pkg in ${efl_pkgs[@]}
+	do
+		efl_pkg_basename="$efl_pkg-$efl_version" >/dev/null
+		echo "### Building $efl_pkg_basename in $staging_dir/$efl_pkg_basename"
+		pushd "$staging_dir/$efl_pkg_basename"
+		./configure "--prefix=$installation_dir"
+		make "-j$num_jobs"
+		make install
+		popd >/dev/null
+	done
+}
+
+
+
+
+
+##############
+#### OPUS ####
+##############
+
+opus_source="http://downloads.xiph.org/releases/opus"
+opus_ext="tar.gz"
+opus_checksum="sha1sum"
+
+fetch_opus ()
+{
+	opus_version=$1
+	opus_basename="opus-$opus_version"
+	opus_filename="$opus_basename.$opus_ext"
+	opus_link="$opus_source/$opus_filename"
+	opus_link_sha1sum="$opus_source/SHA1SUMS"
+	opus_dest="$dl_dir/$opus_filename"
+	opus_dest_checksum="$opus_dest.$opus_checksum"
+
+	if [ -f "$opus_dest" ]
+	then
+		echo "### $opus_filename present - downloading skipped"
+	else
+		echo "### $opus_filename not present - downloading from $opus_link"
+		wget "$opus_link" -P "$dl_dir"
+		curl -s "$opus_link_sha1sum" | grep "$opus_filename" >"$opus_dest_checksum"
+	fi
+}
+
+check_opus ()
+{
+	opus_version=$1
+	opus_basename="opus-$opus_version"
+	opus_filename="$opus_basename.$opus_ext"
+	opus_dest="$dl_dir/$opus_filename"
+	opus_dest_checksum="$opus_dest.$opus_checksum"
+
+	pushd "$dl_dir" >/dev/null
+	if $opus_checksum -c "$opus_dest_checksum" --quiet >/dev/null 2>&1
+	then
+		echo "### $opus_basename $opus_checksum check : OK"
+	else
+		echo "### $opus_basename $opus_checksum check : FAILED"
+		echo "Removing downloaded files for $opus_basename"
+		checked_rm -f "$opus_dest" "$opus_dest_checksum"
+		if [ -d "$staging_dir/$opus_basename" ]
+		then
+			echo "Removing unpacked content in $staging_dir/$opus_basename"
+			checked_rm -rf "$staging_dir/$opus_basename"
+		fi
+		exit 1
+	fi
+	popd >/dev/null
+}
+
+unpack_opus ()
+{
+	opus_version=$1
+	opus_basename="opus-$opus_version"
+	opus_filename="$opus_basename.$opus_ext"
+	opus_full_filename="$dl_dir/$opus_filename"
+	pushd "$staging_dir" >/dev/null
+	if [ -d "$opus_basename" ]
+	then
+		echo "### Directory $staging_dir/$opus_basename present - unpacking skipped"
+	else
+		echo "### Directory $staging_dir/$opus_basename no present - unpacking"
+		tar xf "$opus_full_filename"
+	fi
+	popd >/dev/null
+}
+
+build_opus ()
+{
+	opus_version=$1
+	opus_basename="opus-$opus_version"
+	echo "### Building $opus_basename in $staging_dir/$opus_basename"
+	pushd "$staging_dir/$opus_basename" >/dev/null
+	./configure "--prefix=$installation_dir"
+	make "-j$num_jobs"
+	make install
+	popd >/dev/null
+}
+
+
+
+
+
+##############
+#### MAIN ####
+##############
+
+if [ $num_args -lt 1 ]
+then
+        echo "Usage: $0 [--<package>=<version>]"
+        exit -1
+fi
+
+
+declare -a packages=()
+
+
+# parse arguments
+while getopts ":p:j:" opt
+do
+	case $opt in
+		p)
+			package=($(echo "$OPTARG" | sed -e 's/^\([^=]*\)=\(.*\)$/\1 \2/'))
+			pkg_name="${package[0]}"
+			pkg_version="${package[1]}"
+			packages=("${packages[@]}" "$pkg_name" "$pkg_version")
+			;;
+		j)
+			num_jobs="$OPTARG"
+			echo "Building with JOBS=$num_jobs"
+			;;
+		\?)
+			echo "Invalid option: -$OPTARG" >&2
+			exit 1
+			;;
+		:)
+			echo "Option -$OPTARG requires an argument." >&2
+			exit 1
+			;;
+	esac
+done
+
+
+for func in fetch check unpack build
+do
+	set ${packages[@]}
+	while [ $# -gt 0 ]
+	do
+		pkg_name="$1"
+		pkg_version="$2"
+		shift
+		shift
+		echo "###### calling $func function for $pkg_name version $pkg_version"
+		if ! checked_call_function "$func""_""$pkg_name" "$pkg_version"
+		then
+			echo "No $func function for $pkg_name exists or $func function failed. Stop."
+			exit 1
+		fi
+	done
+done
+

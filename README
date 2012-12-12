@@ -1,0 +1,25 @@
+Quick setup
+===========
+
+To build Opus and GStreamer with make -j5, run:
+
+./build.sh -p opus=1.0.1 -p gstreamer=1.0.2 -j 5
+
+(the -j X argument is optional)
+
+NOTE: the order MATTERS. FIRST comes Opus, THEN GStreamer. Otherwise, GStreamer won't find the Opus binaries, and will not build the associated plugins.
+Use the version numbers of the packages that you want. In this example, it would build GStreamer 1.0.2 and Opus 1.0.1.
+
+
+How to use the built installation
+=================================
+
+Run: source ./env.sh
+Then, gst-inspect-1.0 and friends should be available.
+
+
+How to clean up
+===============
+
+Just delete the staging/ and installation/ directories. downloads/ too if you are sure you don't need the downloaded stuff.
+(Deleting the first two but not the last is useful for rebuilding, since it omits the downloading stage.)
