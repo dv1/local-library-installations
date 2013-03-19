@@ -1,14 +1,33 @@
 #!/usr/bin/env bash
 
 
+# BASH shell script for building local library installations
+# Copyright (C) 2013  Carlos Rafael Giani
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+
+
 # TODO:
 # - further tests
 # - make it possible to pass extra arguments to ./configure calls
 # - more code reuse (check_gstreamer/check_opus duplicate a lot for example)
 # - what if the version number is omitted? Default version? Error?
-# - support for git checkouts (example: gstreamer=git-abc : clone git repo , use branch "abc" ; gstreamer=git : same, branch defaults to "master")
+# - support for more detailed git checkouts (example: gstreamer=git-abc : clone git repo ,
+#   use branch "abc" ; gstreamer=git : same, branch defaults to "master")
 # - support for building GLib
-# - rename build_gstreamer () etc. to build_gstreamer-1.0 () to be able to insert other versions
 # - what if the package file itself is present but the checksum one isn't?
 # - make use of optflags
 # - don't use $(pwd) for getting the root path - try to get the script's location instead
