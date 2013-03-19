@@ -31,6 +31,10 @@
 # - what if the package file itself is present but the checksum one isn't?
 # - make use of optflags
 # - don't use $(pwd) for getting the root path - try to get the script's location instead
+# - make the git source configurable (git:// , ssh:// , http:// etc.) ;
+#   very important in cases where firewalls only allow http(s) traffic
+# - finish adapting gstreamer-0.10 and make sure 1.0 and 0.10 don't collide
+#   (in staging/, downloads/, installation/)
 
 
 set -e
@@ -122,7 +126,8 @@ gst_0_10_pkgs=( \
 	"gst-ffmpeg" \
 )
 gst_0_10_pkg_source="http://gstreamer.freedesktop.org/src"
-gst_0_10_git_source="git://anongit.freedesktop.org/gstreamer"
+gst_0_10_git_source="http://anongit.freedesktop.org/git/gstreamer"
+#gst_0_10_git_source="git://anongit.freedesktop.org/gstreamer"
 gst_0_10_pkg_ext="tar.bz2"
 gst_0_10_pkg_checksum_prog="md5sum"
 gst_0_10_pkg_checksum_ext="md5"
@@ -280,7 +285,8 @@ gst_1_0_pkgs=( \
 	"gst-libav" \
 )
 gst_1_0_pkg_source="http://gstreamer.freedesktop.org/src"
-gst_1_0_git_source="git://anongit.freedesktop.org/gstreamer"
+gst_1_0_git_source="http://anongit.freedesktop.org/git/gstreamer"
+#gst_1_0_git_source="git://anongit.freedesktop.org/gstreamer"
 gst_1_0_pkg_ext="tar.xz"
 gst_1_0_pkg_checksum="sha256sum"
 
