@@ -90,82 +90,103 @@ source "$root/env.sh"
 
 
 
-#######################
-#### GSTREAMER-1.0 ####
-#######################
+########################
+#### GSTREAMER-0.10 ####
+########################
 
-gst_pkgs=( \
+gst_0_10_pkgs=( \
 	"gstreamer" \
 	"gst-plugins-base" \
 	"gst-plugins-good" \
 	"gst-plugins-bad" \
 	"gst-plugins-ugly" \
-	"gst-libav" \
+	"gst-ffmpeg" \
 )
-gst_pkg_source="http://gstreamer.freedesktop.org/src"
-gst_git_source="git://anongit.freedesktop.org/gstreamer"
-gst_pkg_ext="tar.xz"
-gst_pkg_checksum="sha256sum"
+gst_0_10_pkg_source="http://gstreamer.freedesktop.org/src"
+gst_0_10_git_source="git://anongit.freedesktop.org/gstreamer"
+gst_0_10_pkg_ext="tar.bz2"
+gst_0_10_pkg_checksum_prog="md5sum"
+gst_0_10_pkg_checksum_ext="md5"
 
-fetch_gstreamer ()
+parse_gstreamer_0_10_version ()
 {
-	gst_version=$1
-	for gst_pkg in ${gst_pkgs[@]}
+	echo "$1" | sed -e 's/^\([^:]*\):\([^:]*\):\([^:]*\):\([^:]*\):\([^:]*\):\([^:]*\)$/\1 \2 \3 \4 \5 \6/'
+}
+
+fetch_gstreamer_0_10 ()
+{
+	gst_0_10_versions=($(parse_gstreamer_0_10_version $1))
+	echo "Building GStreamer 0.10 with the following versions:"
+	echo "core:   ${gst_0_10_versions[0]}"
+	echo "base:   ${gst_0_10_versions[1]}"
+	echo "good:   ${gst_0_10_versions[2]}"
+	echo "bad:    ${gst_0_10_versions[3]}"
+	echo "ugly:   ${gst_0_10_versions[4]}"
+	echo "ffmpeg: ${gst_0_10_versions[5]}"
+
+	i=0
+	for gst_0_10_pkg in ${gst_0_10_pkgs[@]}
 	do
-		gst_pkg_basename="$gst_pkg-$gst_version"
-		if [ "$gst_version" == "git" ]
+		version=${gst_0_10_versions[$i]}
+		i=$(expr "$i" "+" "1")
+		gst_0_10_pkg_basename="$gst_0_10_pkg-$version"
+		if [ "$version" == "git" ]
 		then
-			gst_git_link="$gst_git_source/$gst_pkg"
-			gst_git_dest="$staging_dir/$gst_pkg_basename"
-			if [ -d "$gst_git_dest" ]
+			gst_0_10_git_link="$gst_0_10_git_source/$gst_0_10_pkg"
+			gst_0_10_git_dest="$staging_dir/$gst_0_10_pkg_basename"
+			if [ -d "$gst_0_10_git_dest" ]
 			then
-				pushd "$gst_git_dest" >/dev/null
+				pushd "$gst_0_10_git_dest" >/dev/null
 				git pull
 				popd >/dev/null
 			else
-				git clone "$gst_git_link" "$gst_git_dest"
+				git clone "$gst_0_10_git_link" "$gst_0_10_git_dest"
+				git checkout "0.10"
 			fi
 		else
-			gst_pkg_filename="$gst_pkg_basename.$gst_pkg_ext"
-			gst_pkg_link="$gst_pkg_source/$gst_pkg/$gst_pkg_filename"
-			gst_pkg_dest="$dl_dir/$gst_pkg_filename"
-			if [ -f "$gst_pkg_dest" ]
+			gst_0_10_pkg_filename="$gst_0_10_pkg_basename.$gst_0_10_pkg_ext"
+			gst_0_10_pkg_link="$gst_0_10_pkg_source/$gst_0_10_pkg/$gst_0_10_pkg_filename"
+			gst_0_10_pkg_dest="$dl_dir/$gst_0_10_pkg_filename"
+			if [ -f "$gst_0_10_pkg_dest" ]
 			then
-				echo "### $gst_pkg_filename present - downloading skipped"
+				echo "### $gst_0_10_pkg_filename present - downloading skipped"
 			else
-				echo "### $gst_pkg_filename not present - downloading from $gst_pkg_link"
-				wget "$gst_pkg_link" -P "$dl_dir"
-				wget "$gst_pkg_link.$gst_pkg_checksum" -P "$dl_dir"
+				echo "### $gst_0_10_pkg_filename not present - downloading from $gst_0_10_pkg_link"
+				wget "$gst_0_10_pkg_link" -P "$dl_dir"
+				wget "$gst_0_10_pkg_link.$gst_0_10_pkg_checksum_ext" -P "$dl_dir"
 			fi
 		fi
 	done
 }
 
-check_gstreamer ()
+check_gstreamer_0_10 ()
 {
-	gst_version=$1
-	if [ "$gst_version" == "git" ]
-	then
-		return 0
-	fi
+	gst_0_10_versions=($(parse_gstreamer_0_10_version $1))
 	pushd "$dl_dir" >/dev/null
-	for gst_pkg in ${gst_pkgs[@]}
+	i=0
+	for gst_0_10_pkg in ${gst_0_10_pkgs[@]}
 	do
-		gst_pkg_basename="$gst_pkg-$gst_version"
-		gst_pkg_filename="$gst_pkg_basename.$gst_pkg_ext"
-		gst_pkg_dest="$dl_dir/$gst_pkg_filename"
-		gst_pkg_dest_checksum="$gst_pkg_dest.$gst_pkg_checksum"
-		if $gst_pkg_checksum -c "$gst_pkg_dest_checksum" --quiet >/dev/null 2>&1
+		version=${gst_0_10_versions[$i]}
+		i=$(expr "$i" "+" "1")
+		if [ "$version" == "git" ]
 		then
-			echo "### $gst_pkg_basename $gst_pkg_checksum check : OK"
+			continue
+		fi
+		gst_0_10_pkg_basename="$gst_0_10_pkg-$version"
+		gst_0_10_pkg_filename="$gst_0_10_pkg_basename.$gst_0_10_pkg_ext"
+		gst_0_10_pkg_dest="$dl_dir/$gst_0_10_pkg_filename"
+		gst_0_10_pkg_dest_checksum="$gst_0_10_pkg_dest.$gst_0_10_pkg_checksum_ext"
+		if $gst_0_10_pkg_checksum_prog -c "$gst_0_10_pkg_dest_checksum" --quiet >/dev/null 2>&1
+		then
+			echo "### $gst_0_10_pkg_basename $gst_0_10_pkg_checksum_ext check : OK"
 		else
-			echo "### $gst_pkg_basename $gst_pkg_checksum check : FAILED"
-			echo "Removing downloaded files for $gst_pkg_basename"
-			checked_rm -f "$gst_pkg_dest" "$gst_pkg_dest_checksum"
-			if [ -d "$staging_dir/$gst_pkg_basename" ]
+			echo "### $gst_0_10_pkg_basename $gst_0_10_pkg_checksum_ext check : FAILED"
+			echo "Removing downloaded files for $gst_0_10_pkg_basename"
+			checked_rm -f "$gst_0_10_pkg_dest" "$gst_0_10_pkg_dest_checksum"
+			if [ -d "$staging_dir/$gst_0_10_pkg_basename" ]
 			then
-				echo "Removing unpacked content in $staging_dir/$gst_pkg_basename"
-				checked_rm -rf "$staging_dir/$gst_pkg_basename"
+				echo "Removing unpacked content in $staging_dir/$gst_0_10_pkg_basename"
+				checked_rm -rf "$staging_dir/$gst_0_10_pkg_basename"
 			fi
 			exit 1
 		fi
@@ -173,39 +194,176 @@ check_gstreamer ()
 	popd >/dev/null
 }
 
-unpack_gstreamer ()
+unpack_gstreamer_0_10 ()
 {
-	gst_version=$1
-	if [ "$gst_version" == "git" ]
-	then
-		return 0
-	fi
+	gst_0_10_versions=($(parse_gstreamer_0_10_version $1))
 	pushd "$staging_dir" >/dev/null
-	for gst_pkg in ${gst_pkgs[@]}
+	i=0
+	for gst_0_10_pkg in ${gst_0_10_pkgs[@]}
 	do
-		gst_pkg_basename="$gst_pkg-$gst_version"
-		gst_pkg_filename="$gst_pkg_basename.$gst_pkg_ext"
-		gst_pkg_full_filename="$dl_dir/$gst_pkg_filename"
-		if [ -d "$gst_pkg_basename" ]
+		version=${gst_0_10_versions[$i]}
+		i=$(expr "$i" "+" "1")
+		if [ "$version" == "git" ]
 		then
-			echo "### Directory $staging_dir/$gst_pkg_basename present - unpacking skipped"
+			continue
+		fi
+		gst_0_10_pkg_basename="$gst_0_10_pkg-$version"
+		gst_0_10_pkg_filename="$gst_0_10_pkg_basename.$gst_0_10_pkg_ext"
+		gst_0_10_pkg_full_filename="$dl_dir/$gst_0_10_pkg_filename"
+		if [ -d "$gst_0_10_pkg_basename" ]
+		then
+			echo "### Directory $staging_dir/$gst_0_10_pkg_basename present - unpacking skipped"
 		else
-			echo "### Directory $staging_dir/$gst_pkg_basename no present - unpacking"
-			tar xf "$gst_pkg_full_filename"
+			echo "### Directory $staging_dir/$gst_0_10_pkg_basename no present - unpacking"
+			tar xf "$gst_0_10_pkg_full_filename"
 		fi
 	done
 	popd >/dev/null
 }
 
-build_gstreamer ()
+build_gstreamer_0_10 ()
 {
-	gst_version=$1
-	for gst_pkg in ${gst_pkgs[@]}
+	gst_0_10_versions=($(parse_gstreamer_0_10_version $1))
+	i=0
+	for gst_0_10_pkg in ${gst_0_10_pkgs[@]}
 	do
-		gst_pkg_basename="$gst_pkg-$gst_version" >/dev/null
-		echo "### Building $gst_pkg_basename in $staging_dir/$gst_pkg_basename"
-		pushd "$staging_dir/$gst_pkg_basename"
-		if [ "$gst_version" == "git" ]
+		version=${gst_0_10_versions[$i]}
+		i=$(expr "$i" "+" "1")
+		gst_0_10_pkg_basename="$gst_0_10_pkg-$version" >/dev/null
+		echo "### Building $gst_0_10_pkg_basename in $staging_dir/$gst_0_10_pkg_basename"
+		pushd "$staging_dir/$gst_0_10_pkg_basename"
+		if [ "$version" == "git" ]
+		then
+			./autogen.sh --noconfigure
+		fi
+		./configure "--prefix=$installation_dir"
+		make "-j$num_jobs"
+		make install
+		popd >/dev/null
+	done
+}
+
+
+
+
+
+
+#######################
+#### GSTREAMER-1.0 ####
+#######################
+
+gst_1_0_pkgs=( \
+	"gstreamer" \
+	"gst-plugins-base" \
+	"gst-plugins-good" \
+	"gst-plugins-bad" \
+	"gst-plugins-ugly" \
+	"gst-libav" \
+)
+gst_1_0_pkg_source="http://gstreamer.freedesktop.org/src"
+gst_1_0_git_source="git://anongit.freedesktop.org/gstreamer"
+gst_1_0_pkg_ext="tar.xz"
+gst_1_0_pkg_checksum="sha256sum"
+
+fetch_gstreamer_1_0 ()
+{
+	gst_1_0_version=$1
+	for gst_1_0_pkg in ${gst_1_0_pkgs[@]}
+	do
+		gst_1_0_pkg_basename="$gst_1_0_pkg-$gst_1_0_version"
+		if [ "$gst_1_0_version" == "git" ]
+		then
+			gst_1_0_git_link="$gst_1_0_git_source/$gst_1_0_pkg"
+			gst_1_0_git_dest="$staging_dir/$gst_1_0_pkg_basename"
+			if [ -d "$gst_1_0_git_dest" ]
+			then
+				pushd "$gst_1_0_git_dest" >/dev/null
+				git pull
+				popd >/dev/null
+			else
+				git clone "$gst_1_0_git_link" "$gst_1_0_git_dest"
+			fi
+		else
+			gst_1_0_pkg_filename="$gst_1_0_pkg_basename.$gst_1_0_pkg_ext"
+			gst_1_0_pkg_link="$gst_1_0_pkg_source/$gst_1_0_pkg/$gst_1_0_pkg_filename"
+			gst_1_0_pkg_dest="$dl_dir/$gst_1_0_pkg_filename"
+			if [ -f "$gst_1_0_pkg_dest" ]
+			then
+				echo "### $gst_1_0_pkg_filename present - downloading skipped"
+			else
+				echo "### $gst_1_0_pkg_filename not present - downloading from $gst_1_0_pkg_link"
+				wget "$gst_1_0_pkg_link" -P "$dl_dir"
+				wget "$gst_1_0_pkg_link.$gst_1_0_pkg_checksum" -P "$dl_dir"
+			fi
+		fi
+	done
+}
+
+check_gstreamer_1_0 ()
+{
+	gst_1_0_version=$1
+	if [ "$gst_1_0_version" == "git" ]
+	then
+		return 0
+	fi
+	pushd "$dl_dir" >/dev/null
+	for gst_1_0_pkg in ${gst_1_0_pkgs[@]}
+	do
+		gst_1_0_pkg_basename="$gst_1_0_pkg-$gst_1_0_version"
+		gst_1_0_pkg_filename="$gst_1_0_pkg_basename.$gst_1_0_pkg_ext"
+		gst_1_0_pkg_dest="$dl_dir/$gst_1_0_pkg_filename"
+		gst_1_0_pkg_dest_checksum="$gst_1_0_pkg_dest.$gst_1_0_pkg_checksum"
+		if $gst_1_0_pkg_checksum -c "$gst_1_0_pkg_dest_checksum" --quiet >/dev/null 2>&1
+		then
+			echo "### $gst_1_0_pkg_basename $gst_1_0_pkg_checksum check : OK"
+		else
+			echo "### $gst_1_0_pkg_basename $gst_1_0_pkg_checksum check : FAILED"
+			echo "Removing downloaded files for $gst_1_0_pkg_basename"
+			checked_rm -f "$gst_1_0_pkg_dest" "$gst_1_0_pkg_dest_checksum"
+			if [ -d "$staging_dir/$gst_1_0_pkg_basename" ]
+			then
+				echo "Removing unpacked content in $staging_dir/$gst_1_0_pkg_basename"
+				checked_rm -rf "$staging_dir/$gst_1_0_pkg_basename"
+			fi
+			exit 1
+		fi
+	done
+	popd >/dev/null
+}
+
+unpack_gstreamer_1_0 ()
+{
+	gst_1_0_version=$1
+	if [ "$gst_1_0_version" == "git" ]
+	then
+		return 0
+	fi
+	pushd "$staging_dir" >/dev/null
+	for gst_1_0_pkg in ${gst_1_0_pkgs[@]}
+	do
+		gst_1_0_pkg_basename="$gst_1_0_pkg-$gst_1_0_version"
+		gst_1_0_pkg_filename="$gst_1_0_pkg_basename.$gst_1_0_pkg_ext"
+		gst_1_0_pkg_full_filename="$dl_dir/$gst_1_0_pkg_filename"
+		if [ -d "$gst_1_0_pkg_basename" ]
+		then
+			echo "### Directory $staging_dir/$gst_1_0_pkg_basename present - unpacking skipped"
+		else
+			echo "### Directory $staging_dir/$gst_1_0_pkg_basename no present - unpacking"
+			tar xf "$gst_1_0_pkg_full_filename"
+		fi
+	done
+	popd >/dev/null
+}
+
+build_gstreamer_1_0 ()
+{
+	gst_1_0_version=$1
+	for gst_1_0_pkg in ${gst_1_0_pkgs[@]}
+	do
+		gst_1_0_pkg_basename="$gst_1_0_pkg-$gst_1_0_version" >/dev/null
+		echo "### Building $gst_1_0_pkg_basename in $staging_dir/$gst_1_0_pkg_basename"
+		pushd "$staging_dir/$gst_1_0_pkg_basename"
+		if [ "$gst_1_0_version" == "git" ]
 		then
 			./autogen.sh --noconfigure
 		fi
@@ -397,10 +555,21 @@ build_opus ()
 #### MAIN ####
 ##############
 
+print_help ()
+{
+        echo "Usage: $0 [OPTION]..."
+	echo ""
+	echo "Valid options:"
+	echo "  -p PACKAGE=VERSION   build and locally install VERSION of PACKAGE"
+	echo "                       (set version to \"git\" to build from git upstream)"
+	echo "  -j N                 use parallel build, with parallelization factor N"
+	echo "  -h                   this help"
+        exit -1
+}
+
 if [ $num_args -lt 1 ]
 then
-        echo "Usage: $0 [--<package>=<version>]"
-        exit -1
+	print_help
 fi
 
 
@@ -421,8 +590,13 @@ do
 			num_jobs="$OPTARG"
 			echo "Building with JOBS=$num_jobs"
 			;;
+		h)
+			print_help
+			;;
 		\?)
 			echo "Invalid option: -$OPTARG" >&2
+			echo ""
+			print_help
 			exit 1
 			;;
 		:)

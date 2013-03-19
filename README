@@ -23,3 +23,18 @@ How to clean up
 
 Just delete the staging/ and installation/ directories. downloads/ too if you are sure you don't need the downloaded stuff.
 (Deleting the first two but not the last is useful for rebuilding, since it omits the downloading stage.)
+
+
+Supported packages
+==================
+
+At the moment, the following packages are supported (the package name you pass to -p is written in brackets):
+
+* GStreamer 1.0 (gstreamer_1_0)
+* Enlightenment Foundation Libraries (efl)
+* Opus codec (opus)
+
+Also:
+* GStreamer 0.10 (gstreamer_0_10)
+but this one isn't very well tested at the moment, and probably collides with GStreamer 1.0 (because of the registry etc.)
+
