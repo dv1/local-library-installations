@@ -20,6 +20,18 @@ NOTE: the order MATTERS. FIRST comes Opus, THEN GStreamer. Otherwise, GStreamer 
 Use the version numbers of the packages that you want. In this example, it would build GStreamer 1.0.2 and Opus 1.0.1.
 
 
+build.sh usage
+==============
+
+Usage: ./build.sh [OPTION]...
+
+Valid options:
+  -p PACKAGE=VERSION   build and locally install VERSION of PACKAGE
+                       (set version to "git" to build from git upstream)
+  -j N                 use parallel build, with parallelization factor N
+  -h                   this help
+
+
 How to use the built installation
 =================================
 
