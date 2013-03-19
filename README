@@ -12,7 +12,7 @@ Quick setup
 
 To build Opus and GStreamer with make -j5, run:
 
-./build.sh -p opus=1.0.1 -p gstreamer=1.0.2 -j 5
+./build.sh -p opus=1.0.1 -p gstreamer_1_0=1.0.2 -j 5
 
 (the -j X argument is optional)
 
