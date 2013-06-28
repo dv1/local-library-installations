@@ -19,7 +19,15 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 
-installation_dir="$(pwd)/installation"
+num_args=$#
+
+if [ $num_args -lt 1 ]
+then
+	installation_dir="$(pwd)/installation"
+else
+	installation_dir="$1/installation"
+fi
+
 
 export PATH="$installation_dir/bin:$PATH"
 export CFLAGS="-I$installation_dir/include"
