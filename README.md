@@ -10,27 +10,38 @@ Licensed under the GPL v2. See the LICENSE file for details.
 Quick setup
 -----------
 
+Make sure you have at least Python 2.7 installed in your system. curl and wget are also necessary.
+
 To build Opus and GStreamer with make -j5, run:
 
-    ./build.sh -p opus=1.0.1 -p gstreamer_1_0=1.0.2 -j 5
+    ./build.py -p opus=1.0.2 -p gstreamer-1.0=1.0.7 -j 5
 
-(the -j X argument is optional)
++(the -j X argument is optional ; also, do not forget about the space between -j and the number)
 
-**NOTE**: the order MATTERS. FIRST comes Opus, THEN GStreamer. Otherwise, GStreamer won't find the Opus binaries, and will not build the associated plugins.
-Use the version numbers of the packages that you want. In this example, it would build GStreamer 1.0.2 and Opus 1.0.1.
+**NOTE**: the order matters. FIRST comes Opus, THEN GStreamer. Otherwise, GStreamer won't find the Opus binaries, and will not build the associated plugins.
+Use the version numbers of the packages that you want. In this example, it would build Opus 1.0.2 and GStreamer 1.0.7 (the latter with Opus plugins, since Opus has been built before).
 
 
-build.sh usage
+build.py usage
 --------------
 
-    Usage: ./build.sh [OPTION]...
-
-    Valid options:
-
-      -p PACKAGE=VERSION   build and locally install VERSION of PACKAGE
-                         (set version to "git" to build from git upstream)
-      -j N                 use parallel build, with parallelization factor N
-      -h                   this help
+    usage: build.py [-h] [-j JOBS] [-p [PKG=VERSION [PKG=VERSION ...]]]
+    
+    supported packages:
+        gstreamer-1.0 - GStreamer 1.0
+        vpx - libvpx VP8 video codec library
+        opus - Opus audio codec library
+        bluez - BlueZ
+        efl - Enlightenment Foundation Libraries
+        orc - ORC Oil Runtime Compiler library
+    
+    Example call: ./build.py -p orc=0.4.17 gstreamer-1.0=1.1.1
+    
+    optional arguments:
+      -h, --help            show this help message and exit
+      -j JOBS               Specifies the number of jobs to run simultaneously when compiling
+      -p [PKG=VERSION [PKG=VERSION ...]]
+                            Package(s) to build; VERSION is either a valid version number, or "git", in which case sources are fetched from git upstream instead
 
 
 How to use the built installation
@@ -55,12 +66,10 @@ Supported packages
 
 At the moment, the following packages are supported (the package name you pass to -p is written in brackets):
 
-* GStreamer 1.0 (`gstreamer_1_0`)
+* GStreamer 1.0 (`gstreamer-1.0`)
 * Enlightenment Foundation Libraries (`efl`)
 * Opus codec (`opus`)
-
-Also:
-
-* GStreamer 0.10 (`gstreamer_0_10`)
-
-but this one isn't very well tested at the moment, and probably collides with GStreamer 1.0 (because of the registry etc.)
+* Opus audio codec (`opus`)
+* VP8 video codec (`vpx`)
+* ORC Oil Runtime Compiler, important for good GStreamer performance (`orc`)
+* BlueZ Linux bluetooth package (`bluez`)

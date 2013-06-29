@@ -29,13 +29,13 @@ def hashfile(fname, hashfuncname):
 
 
 class Context:
-	def __init__(self, rootdir, num_jobs):
+	def __init__(self, rootdir):
 		self.rootdir = os.path.abspath(os.path.expanduser(rootdir))
 		self.dl_dir = os.path.join(self.rootdir, 'downloads')
 		self.staging_dir = os.path.join(self.rootdir, 'staging')
 		self.inst_dir = os.path.join(self.rootdir, 'installation')
 		self.allowed_paths = [self.dl_dir, self.staging_dir, self.inst_dir]
-		self.num_jobs = num_jobs
+		self.num_jobs = 1
 		self.package_builders = {}
 		mkdir_p(self.dl_dir)
 		mkdir_p(self.staging_dir)
@@ -178,6 +178,9 @@ class OpusBuilder(Builder):
 	def __init__(self, ctx):
 		super(OpusBuilder, self).__init__(ctx)
 
+	def desc(self):
+		return "Opus audio codec library"
+
 	def fetch(self, ctx, package_version):
 		basename = 'opus-%s' % package_version
 		archive_filename = basename + '.' + OpusBuilder.opus_ext
@@ -228,6 +231,9 @@ class GStreamer10Builder(Builder):
 
 	def __init__(self, ctx):
 		super(GStreamer10Builder, self).__init__(ctx)
+
+	def desc(self):
+		return "GStreamer 1.0"
 
 	def fetch(self, ctx, package_version):
 		for pkg in GStreamer10Builder.pkgs:
@@ -307,6 +313,9 @@ class EFLBuilder(Builder):
 	def __init__(self, ctx):
 		super(EFLBuilder, self).__init__(ctx)
 
+	def desc(self):
+		return "Enlightenment Foundation Libraries"
+
 	def fetch(self, ctx, package_version):
 		for pkg in EFLBuilder.pkgs:
 			basename = '%s-%s' % (pkg, package_version)
@@ -346,6 +355,9 @@ class VPXBuilder(Builder):
 	def __init__(self, ctx):
 		super(VPXBuilder, self).__init__(ctx)
 
+	def desc(self):
+		return "libvpx VP8 video codec library"
+
 	def fetch(self, ctx, package_version):
 		basename = 'libvpx-%s' % package_version
 		git_bare = os.path.join(ctx.dl_dir, basename + '.git')
@@ -372,6 +384,9 @@ class OrcBuilder(Builder):
 	def __init__(self, ctx):
 		super(OrcBuilder, self).__init__(ctx)
 
+	def desc(self):
+		return "ORC Oil Runtime Compiler library"
+
 	def fetch(self, ctx, package_version):
 		basename = 'orc-%s' % package_version
 		archive_filename = basename + '.' + OrcBuilder.orc_ext
@@ -396,12 +411,14 @@ class OrcBuilder(Builder):
 
 
 class BlueZBuilder(Builder):
-#	bluez_source="https://www.kernel.org/pub/linux/bluetooth/bluez-4.101.tar.xz"
 	bluez_source="https://www.kernel.org/pub/linux/bluetooth"
 	bluez_ext="tar.xz"
 
 	def __init__(self, ctx):
 		super(BlueZBuilder, self).__init__(ctx)
+
+	def desc(self):
+		return "BlueZ"
 
 	def fetch(self, ctx, package_version):
 		basename = 'bluez-%s' % package_version
@@ -438,14 +455,29 @@ class BlueZBuilder(Builder):
 
 
 
-parser = argparse.ArgumentParser()
+rootdir = os.path.dirname(os.path.realpath(__file__))
+ctx = Context(rootdir)
+ctx.package_builders['gstreamer-1.0'] = GStreamer10Builder(ctx)
+ctx.package_builders['opus'] = OpusBuilder(ctx)
+ctx.package_builders['efl'] = EFLBuilder(ctx)
+ctx.package_builders['vpx'] = VPXBuilder(ctx)
+ctx.package_builders['orc'] = OrcBuilder(ctx)
+ctx.package_builders['bluez'] = BlueZBuilder(ctx)
+
+
+desc_lines = ['supported packages:']
+for i in ctx.package_builders.keys():
+	line = '    %s - %s' % (i, ctx.package_builders[i].desc())
+	desc_lines += [line]
+desc_lines += ['', 'Example call: %s -p orc=0.4.17 gstreamer-1.0=1.1.1' % sys.argv[0]]
+
+parser = argparse.ArgumentParser(description = '\n'.join(desc_lines), formatter_class = argparse.RawTextHelpFormatter)
 parser.add_argument('-j', dest = 'num_jobs', metavar = 'JOBS', type = int, action = 'store', default = 1, help = 'Specifies the number of jobs to run simultaneously when compiling')
 parser.add_argument('-p', dest = 'pkgs_to_build', metavar = 'PKG=VERSION', type = str, action = 'store', default = [], nargs = '*', help = 'Package(s) to build; VERSION is either a valid version number, or "git", in which case sources are fetched from git upstream instead')
 
 args = parser.parse_args()
 
-print(args.num_jobs)
-print(args.pkgs_to_build)
+ctx.num_jobs = args.num_jobs
 
 packages = []
 
@@ -458,16 +490,6 @@ for s in args.pkgs_to_build:
 	version = s[delimiter_pos+1:]
 	packages += [[pkg, version]]
 	print('package: "%s" version: "%s"' % (pkg, version))
-
-
-rootdir = os.path.dirname(os.path.realpath(__file__))
-ctx = Context(rootdir, args.num_jobs)
-ctx.package_builders['gstreamer-1.0'] = GStreamer10Builder(ctx)
-ctx.package_builders['opus'] = OpusBuilder(ctx)
-ctx.package_builders['efl'] = EFLBuilder(ctx)
-ctx.package_builders['vpx'] = VPXBuilder(ctx)
-ctx.package_builders['orc'] = OrcBuilder(ctx)
-ctx.package_builders['bluez'] = BlueZBuilder(ctx)
 
 
 for pkg in packages:
