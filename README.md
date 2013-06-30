@@ -7,6 +7,14 @@ Licensed under the GPL v2. See the LICENSE file for details.
 
 
 
+What this is
+------------
+
+This script is intended for creating local installations of various libraries and frameworks, in case
+a system-wide installation is impossible, impractical, or inconvenient. One example is a developer who
+needs GStreamer 1.0 up and running, with VP8 support, even when using an older distribution.
+
+
 Quick setup
 -----------
 
@@ -41,7 +49,10 @@ build.py usage
       -h, --help            show this help message and exit
       -j JOBS               Specifies the number of jobs to run simultaneously when compiling
       -p [PKG=VERSION [PKG=VERSION ...]]
-                            Package(s) to build; VERSION is either a valid version number, or "git", in which case sources are fetched from git upstream instead
+                            Package(s) to build; VERSION is either a valid version number,
+			    or "git", in which case sources are fetched from git upstream instead
+
+NOTE: Currently, only GStreamer 1.0 can be built from git.
 
 
 How to use the built installation
@@ -52,6 +63,16 @@ Run:
     source ./env.sh
 
 Then, gst-inspect-1.0 and friends should be available.
+
+
+Full GStreamer 1.0 setup using the script
+-----------------------------------------
+
+A full GStreamer 1.0.7 setup including GLib can be built by using this example call:
+
+    ./build.py -p orc=0.4.17 opus=1.0.2 vpx=1.2.0 gstreamer-1.0=1.0.7 -j X
+
+where X is the number of jobs that shall run in parallel with make (or equivalent build systems).
 
 
 How to clean up
