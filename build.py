@@ -145,16 +145,20 @@ class Builder(object):
 				return False
 		return True
 
-	def do_config_make_build(self, basename, is_git, extra_config = '', extra_cflags = '', extra_cxxflags = ''):
+	def do_config_make_build(self, basename, is_git, extra_config = '', extra_cflags = '', extra_cxxflags = '', noconfigure = True):
 		staging = os.path.join(ctx.staging_dir, basename)
 		olddir = os.getcwd()
 		os.chdir(staging)
 		success = True
 		if is_git:
-			success = (0 == ctx.call_with_env('./autogen.sh --noconfigure'))
-		success = success and \
-			(0 == ctx.call_with_env('./configure --prefix="%s" %s' % (ctx.inst_dir, extra_config), 'export CFLAGS="$CFLAGS %s" ; export CXXFLAGS="$CXXFLAGS %s" ' % (extra_cxxflags, extra_cxxflags))) and \
-			(0 == ctx.call_with_env('make "-j%d"' % ctx.num_jobs))
+			if noconfigure:
+				success = success and (0 == ctx.call_with_env('./autogen.sh --noconfigure'))
+			else:
+				success = success and (0 == ctx.call_with_env('./autogen.sh --prefix="%s" %s' % (ctx.inst_dir, extra_config), 'export CFLAGS="$CFLAGS %s" ; export CXXFLAGS="$CXXFLAGS %s" ' % (extra_cxxflags, extra_cxxflags)))
+		if (not is_git) or (is_git and noconfigure):
+				success = success and (0 == ctx.call_with_env('./configure --prefix="%s" %s' % (ctx.inst_dir, extra_config), 'export CFLAGS="$CFLAGS %s" ; export CXXFLAGS="$CXXFLAGS %s" ' % (extra_cxxflags, extra_cxxflags)))
+
+		success = success and (0 == ctx.call_with_env('make "-j%d"' % ctx.num_jobs))
 		os.chdir(olddir)
 		return success
 
