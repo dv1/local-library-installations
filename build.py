@@ -286,7 +286,10 @@ class GStreamer10Builder(Builder):
 	def build(self, ctx, package_version):
 		for pkg in GStreamer10Builder.pkgs:
 			basename = '%s-%s' % (pkg, package_version)
-			if not self.do_config_make_build(basename, package_version == 'git'):
+			extra_config = '--disable-examples'
+			if pkg == 'gst-plugins-bad':
+				extra_config += ' --disable-directfb --disable-modplug'
+			if not self.do_config_make_build(basename = basename, is_git = (package_version == 'git'), extra_config = extra_config):
 				return False
 			if not self.do_make_install(basename):
 				return False
