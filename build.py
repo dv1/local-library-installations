@@ -417,6 +417,54 @@ class OrcBuilder(Builder):
 
 
 
+class GLibBuilder(Builder):
+	glib_source="http://ftp.gnome.org/pub/gnome/sources/glib"
+	glib_ext="tar.xz"
+
+	def __init__(self, ctx):
+		super(GLibBuilder, self).__init__(ctx)
+
+	def desc(self):
+		return "GLib library"
+
+	def fetch(self, ctx, package_version):
+		# truncate version: x.yy.z -> x.yy
+		# necessary for the source path
+		truncated_version = package_version[:package_version.rfind('.')]
+
+		basename = 'glib-%s' % package_version
+		archive_filename = basename + '.' + GLibBuilder.glib_ext
+		archive_link = GLibBuilder.glib_source + '/' + truncated_version + '/' + archive_filename
+		archive_link_checksum = GLibBuilder.glib_source + '/' + truncated_version + '/' + basename + '.sha256sum'
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+		archive_dest_checksum = archive_dest + ".sha256sum"
+		archive_dest_checksum_tmp = archive_dest + ".sha256sum-tmp"
+
+		if not self.fetch_package_file(archive_filename, archive_dest, archive_dest_checksum_tmp, archive_link, archive_link_checksum):
+			return False
+		subprocess.call('grep "%s" "%s" >"%s"' % (archive_filename, archive_dest_checksum_tmp, archive_dest_checksum), shell = True)
+		return True
+
+	def check(self, ctx, package_version):
+		basename = 'glib-%s' % package_version
+		archive_filename = basename + '.' + GLibBuilder.glib_ext
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+		archive_dest_checksum = archive_dest + '.sha256sum'
+
+		return self.check_package(pkg, basename, 'sha256sum', archive_dest_checksum)
+
+	def unpack(self, ctx, package_version):
+		basename = 'glib-%s' % package_version
+		archive_filename = basename + '.' + GLibBuilder.glib_ext
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+		return self.unpack_package(basename, archive_dest)
+
+	def build(self, ctx, package_version):
+		basename = 'glib-%s' % package_version
+		return self.do_config_make_build(basename, False) and self.do_make_install(basename)
+
+
+
 class BlueZBuilder(Builder):
 	bluez_source="https://www.kernel.org/pub/linux/bluetooth"
 	bluez_ext="tar.xz"
@@ -469,6 +517,7 @@ ctx.package_builders['opus'] = OpusBuilder(ctx)
 ctx.package_builders['efl'] = EFLBuilder(ctx)
 ctx.package_builders['vpx'] = VPXBuilder(ctx)
 ctx.package_builders['orc'] = OrcBuilder(ctx)
+ctx.package_builders['glib'] = GLibBuilder(ctx)
 ctx.package_builders['bluez'] = BlueZBuilder(ctx)
 
 
