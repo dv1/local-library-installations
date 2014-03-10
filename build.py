@@ -299,22 +299,21 @@ class GStreamer10Builder(Builder):
 
 class EFLBuilder(Builder):
 	pkgs = [ \
-		"eina", \
-		"eet", \
-		"evas", \
-		"ecore", \
-		"eio", \
-		"embryo", \
-		"edje", \
-		"efreet", \
-		"e_dbus", \
-		"eeze", \
+		"core", \
+		"evas_generic_loaders", \
+		"emotion_generic_players", \
 		"elementary", \
 		"expedite", \
-		"evas_generic_loaders", \
-		"emotion", \
+		"enventor" \
 	] # ethumb, evil
 	efl_source = 'http://download.enlightenment.org/releases'
+	git_sources = { \
+		'core':'git://git.enlightenment.org/core/efl.git' , \
+		'elementary':'git://git.enlightenment.org/core/elementary.git' , \
+		'expedite':'git://git.enlightenment.org/tools/expedite.git' , \
+		'evas_generic_loaders':'git://git.enlightenment.org/core/evas_generic_loaders.git' \
+	}
+	git_modules = ['core','elementary','evas_generic_loaders','expedite']
 	pkg_ext = 'tar.bz2'
 
 	def __init__(self, ctx):
@@ -324,10 +323,83 @@ class EFLBuilder(Builder):
 		return "Enlightenment Foundation Libraries"
 
 	def fetch(self, ctx, package_version):
-		for pkg in EFLBuilder.pkgs:
-			basename = '%s-%s' % (pkg, package_version)
-			archive_filename = basename + '.' + EFLBuilder.pkg_ext
-			archive_link = EFLBuilder.efl_source + '/' + archive_filename
+		if package_version == 'git':
+			for basename in EFLBuilder.git_modules:
+				git_link = EFLBuilder.git_sources[basename]
+				git_bare = os.path.join(ctx.dl_dir, basename + '.git')
+				if not self.fetch_package_git(git_link, git_bare):
+					return False
+		else:
+			for pkg in EFLBuilder.pkgs:
+				basename = '%s-%s' % (pkg, package_version)
+				archive_filename = basename + '.' + EFLBuilder.pkg_ext
+				archive_link = EFLBuilder.efl_source + '/' + archive_filename
+				archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+				if not self.fetch_package_file(archive_filename, archive_dest, None, archive_link, None):
+					return False
+		return True
+
+	def check(self, ctx, package_version):
+		return True
+
+	def unpack(self, ctx, package_version):
+		if package_version == 'git':
+			for basename in EFLBuilder.git_modules:
+				git_bare = os.path.join(ctx.dl_dir, basename + '.git')
+				if not self.clone_local_git_repo(git_bare, basename + '.git'):
+					return False
+		else:
+			for pkg in EFLBuilder.pkgs:
+				basename = '%s-%s' % (pkg, package_version)
+				archive_filename = basename + '.' + EFLBuilder.pkg_ext
+				archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+				if not self.unpack_package(basename, archive_dest):
+					return False
+		return True
+
+	def build(self, ctx, package_version):
+		if package_version == 'git':
+			for key in EFLBuilder.git_modules:
+				basename = key + '.git'
+				if not self.do_config_make_build(basename, True, noconfigure = False):
+					return False
+				if not self.do_make_install(basename):
+					return False
+		else:
+			for pkg in EFLBuilder.pkgs:
+				basename = '%s-%s' % (pkg, package_version)
+				if not self.do_config_make_build(basename, False):
+					return False
+				if not self.do_make_install(basename):
+					return False
+		return True
+
+
+
+class EFL18Builder(Builder):
+	pkgs = [ \
+		("efl", "libs", "1.8.5", ""),\
+		("evas_generic_loaders", "libs", "1.8.1", ""),\
+		("emotion_generic_players", "libs", "1.8.1", ""),\
+		("elementary", "libs", "1.8.4", ""),\
+		("terminology", "apps", "0.4.0", ""),\
+		("enventor", "apps", "0.1", "0.1.0") \
+	]
+	pkg_ext = 'tar.gz'
+#	http://download.enlightenment.org/rel/libs/elementary/elementary-1.8.4.tar.gz
+	efl_source = 'http://download.enlightenment.org/rel'
+
+	def __init__(self, ctx):
+		super(EFL18Builder, self).__init__(ctx)
+
+	def desc(self):
+		return "Enlightenment Foundation Libraries version 1.8 or newer"
+		
+	def fetch(self, ctx, package_version):
+		for pkg in EFL18Builder.pkgs:
+			basename = '%s-%s' % (pkg[0], pkg[2])
+			archive_filename = basename + '.' + EFL18Builder.pkg_ext
+			archive_link = EFL18Builder.efl_source + ('/%s/%s/%s' % (pkg[1], pkg[0], archive_filename))
 			archive_dest = os.path.join(ctx.dl_dir, archive_filename)
 			if not self.fetch_package_file(archive_filename, archive_dest, None, archive_link, None):
 				return False
@@ -337,17 +409,21 @@ class EFLBuilder(Builder):
 		return True
 
 	def unpack(self, ctx, package_version):
-		for pkg in EFLBuilder.pkgs:
-			basename = '%s-%s' % (pkg, package_version)
-			archive_filename = basename + '.' + EFLBuilder.pkg_ext
+		for pkg in EFL18Builder.pkgs:
+			basename = '%s-%s' % (pkg[0], pkg[2])
+			archive_filename = basename + '.' + EFL18Builder.pkg_ext
 			archive_dest = os.path.join(ctx.dl_dir, archive_filename)
 			if not self.unpack_package(basename, archive_dest):
 				return False
 		return True
 
 	def build(self, ctx, package_version):
-		for pkg in EFLBuilder.pkgs:
-			basename = '%s-%s' % (pkg, package_version)
+		for pkg in EFL18Builder.pkgs:
+			if pkg[3]:
+				ver = pkg[3]
+			else:
+				ver = pkg[2]
+			basename = '%s-%s' % (pkg[0], ver)
 			if not self.do_config_make_build(basename, False):
 				return False
 			if not self.do_make_install(basename):
@@ -515,6 +591,7 @@ ctx = Context(rootdir)
 ctx.package_builders['gstreamer-1.0'] = GStreamer10Builder(ctx)
 ctx.package_builders['opus'] = OpusBuilder(ctx)
 ctx.package_builders['efl'] = EFLBuilder(ctx)
+ctx.package_builders['efl1.8'] = EFL18Builder(ctx)
 ctx.package_builders['vpx'] = VPXBuilder(ctx)
 ctx.package_builders['orc'] = OrcBuilder(ctx)
 ctx.package_builders['glib'] = GLibBuilder(ctx)
