@@ -608,6 +608,9 @@ parser = argparse.ArgumentParser(description = '\n'.join(desc_lines), formatter_
 parser.add_argument('-j', dest = 'num_jobs', metavar = 'JOBS', type = int, action = 'store', default = 1, help = 'Specifies the number of jobs to run simultaneously when compiling')
 parser.add_argument('-p', dest = 'pkgs_to_build', metavar = 'PKG=VERSION', type = str, action = 'store', default = [], nargs = '*', help = 'Package(s) to build; VERSION is either a valid version number, or "git", in which case sources are fetched from git upstream instead')
 
+if len(sys.argv) == 1:
+	parser.print_help()
+	sys.exit(1)
 args = parser.parse_args()
 
 ctx.num_jobs = args.num_jobs
