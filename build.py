@@ -434,6 +434,61 @@ class EFL18Builder(Builder):
 		return True
 
 
+class Qt5Builder(Builder):
+	qt5_source = "http://download.qt.io/official_releases/qt"
+	pkg_ext = 'tar.xz'
+
+	def __init__(self, ctx):
+		super(Qt5Builder, self).__init__(ctx)
+
+	def desc(self):
+		return "Qt 5"
+
+	def fetch(self, ctx, package_version):
+		short_version = package_version[:package_version.rfind('.')]
+		basename = 'qt-everywhere-opensource-src-' + package_version
+		archive_filename = basename + '.' + Qt5Builder.pkg_ext
+		archive_link_base = Qt5Builder.qt5_source + ('/%s/%s/single' % (short_version, package_version))
+		archive_link = archive_link_base + "/" + archive_filename
+		archive_link_md5sums = archive_link_base + '/md5sums.txt'
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+		archive_dest_checksum = os.path.join(ctx.dl_dir, 'qt5-md5sums')
+		archive_dest_checksum_tmp = os.path.join(ctx.dl_dir, 'qt5-md5sums-tmp')
+		if not self.fetch_package_file(archive_filename, archive_dest, archive_dest_checksum_tmp, archive_link, archive_link_md5sums):
+			return False
+
+		subprocess.call('grep "%s" "%s" >"%s"' % (archive_filename, archive_dest_checksum_tmp, archive_dest_checksum), shell = True)
+		return True
+
+	def check(self, ctx, package_version):
+		basename = 'qt-everywhere-opensource-src-' + package_version
+		archive_filename = basename + '.' + Qt5Builder.pkg_ext
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+		archive_dest_checksum = os.path.join(ctx.dl_dir, 'qt5-md5sums')
+		return self.check_package('qt5', basename, 'md5sum', archive_dest_checksum)
+
+	def unpack(self, ctx, package_version):
+		basename = 'qt-everywhere-opensource-src-' + package_version
+		archive_filename = basename + '.' + Qt5Builder.pkg_ext
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+		return self.unpack_package(basename, archive_dest)
+
+	def build(self, ctx, package_version):
+		basename = 'qt-everywhere-opensource-src-' + package_version
+
+		staging = os.path.join(ctx.staging_dir, basename)
+		olddir = os.getcwd()
+		os.chdir(staging)
+
+		success = True
+		success = success and (0 == ctx.call_with_env('./configure -opensource -confirm-license -prefix "%s"' % ctx.inst_dir))
+		success = success and (0 == ctx.call_with_env('make "-j%d"' % ctx.num_jobs))
+		success = success and (0 == ctx.call_with_env('make install "-j%d"' % ctx.num_jobs))
+
+		os.chdir(olddir)
+
+		return True
+
 
 class VPXBuilder(Builder):
 	git_source = "http://git.chromium.org/webm/libvpx.git"
@@ -595,6 +650,7 @@ ctx.package_builders['gstreamer-1.0'] = GStreamer10Builder(ctx)
 ctx.package_builders['opus'] = OpusBuilder(ctx)
 ctx.package_builders['efl'] = EFLBuilder(ctx)
 ctx.package_builders['efl1.8'] = EFL18Builder(ctx)
+ctx.package_builders['qt5'] = Qt5Builder(ctx)
 ctx.package_builders['vpx'] = VPXBuilder(ctx)
 ctx.package_builders['orc'] = OrcBuilder(ctx)
 ctx.package_builders['glib'] = GLibBuilder(ctx)
