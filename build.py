@@ -378,15 +378,14 @@ class EFLBuilder(Builder):
 
 class EFL18Builder(Builder):
 	pkgs = [ \
-		("efl", "libs", "1.8.5", ""),\
-		("evas_generic_loaders", "libs", "1.8.1", ""),\
-		("emotion_generic_players", "libs", "1.8.1", ""),\
-		("elementary", "libs", "1.8.4", ""),\
-		("terminology", "apps", "0.4.0", ""),\
-		("enventor", "apps", "0.1", "0.1.0") \
+		("efl", "libs", "1.13.0", ""),\
+		("evas_generic_loaders", "libs", "1.13.0", ""),\
+		("emotion_generic_players", "libs", "1.13.0", ""),\
+		("elementary", "libs", "1.13.0", ""),\
+		("terminology", "apps", "0.8.0", ""),\
+		("enventor", "apps", "0.5.0", ""), \
 	]
 	pkg_ext = 'tar.gz'
-#	http://download.enlightenment.org/rel/libs/elementary/elementary-1.8.4.tar.gz
 	efl_source = 'http://download.enlightenment.org/rel'
 
 	def __init__(self, ctx):
@@ -426,7 +425,7 @@ class EFL18Builder(Builder):
 			basename = '%s-%s' % (pkg[0], ver)
 			if not self.do_config_make_build(basename, False):
 				return False
-			if not self.do_make_install(basename):
+			if not self.do_make_install(basename, False):
 				return False
 		return True
 
