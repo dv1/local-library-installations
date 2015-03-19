@@ -227,6 +227,7 @@ class GStreamer10Builder(Builder):
 		"gst-plugins-bad", \
 		"gst-plugins-ugly", \
 		"gst-libav", \
+		"gst-rtsp-server", \
 	]
 	pkg_source = "http://gstreamer.freedesktop.org/src"
 	git_source = "git://anongit.freedesktop.org/gstreamer"
@@ -289,6 +290,9 @@ class GStreamer10Builder(Builder):
 			extra_config = '--disable-examples'
 			if pkg == 'gst-plugins-bad':
 				extra_config += ' --disable-directfb --disable-modplug'
+			elif pkg == 'gstreamer':
+				extra_config += ' --with-bash-completion-dir=' + ctx.inst_dir
+
 			if not self.do_config_make_build(basename = basename, is_git = (package_version == 'git'), extra_config = extra_config):
 				return False
 			if not self.do_make_install(basename):
