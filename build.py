@@ -46,10 +46,14 @@ class Context:
 		mkdir_p(os.path.join(self.inst_dir, 'share', 'aclocal'))
 
 	def call_with_env(self, cmd, extra_cmds = None):
+		# Avoid bashisms:
+		# * Use "." , not "source"
+		# * Use environment variable to pass on the rootdir
+		#   instead of script arguments
 		if extra_cmds:
-			retval = subprocess.call('source "%s/env.sh" "%s" ; %s ; %s' % (self.rootdir, self.rootdir, extra_cmds, cmd), shell = True)
+			retval = subprocess.call('ROOTDIR="%s" . "%s/env.sh" ; %s ; %s' % (self.rootdir, self.rootdir, extra_cmds, cmd), shell = True)
 		else:
-			retval = subprocess.call('source "%s/env.sh" "%s" ; %s' % (self.rootdir, self.rootdir, cmd), shell = True)
+			retval = subprocess.call('ROOTDIR="%s" . "%s/env.sh" ; %s' % (self.rootdir, self.rootdir, cmd), shell = True)
 		return retval
 
 	def checked_rm(self, options, filelist):
