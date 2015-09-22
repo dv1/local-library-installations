@@ -698,6 +698,50 @@ class BlueZBuilder(Builder):
 		return self.do_config_make_build(basename, False, extra_config = '--with-systemdunitdir="%s"' % os.path.join(ctx.inst_dir, 'lib', 'systemd', 'system')) and self.do_make_install(basename)
 
 
+class X265Builder(Builder):
+	x265_source="http://ftp.videolan.org/pub/videolan/x265"
+	x265_ext="tar.gz"
+
+	def __init__(self, ctx):
+		super(X265Builder, self).__init__(ctx)
+
+	def desc(self):
+		return "x265 HEVC encoder"
+
+	def fetch(self, ctx, package_version):
+		basename = 'x265_%s' % package_version
+		archive_filename = basename + '.' + X265Builder.x265_ext
+		archive_link = X265Builder.x265_source + '/' + archive_filename
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+
+		return self.fetch_package_file(archive_filename, archive_dest, None, archive_link, None)
+
+	def check(self, ctx, package_version):
+		return True
+
+	def unpack(self, ctx, package_version):
+		basename = 'x265_%s' % package_version
+		archive_filename = basename + '.' + X265Builder.x265_ext
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+		return self.unpack_package(basename, archive_dest)
+
+	def build(self, ctx, package_version):
+		basename = 'x265_%s' % package_version
+
+		olddir = os.getcwd()
+		staging = os.path.join(ctx.staging_dir, basename, 'build')
+		os.chdir(staging)
+
+		success = True
+		success = success and (0 == ctx.call_with_env('cmake ../source -DCMAKE_INSTALL_PREFIX="%s"' % ctx.inst_dir))
+		success = success and (0 == ctx.call_with_env('make'))
+		success = success and (0 == ctx.call_with_env('make install'))
+
+		os.chdir(olddir)
+
+		return success
+
+
 
 
 rootdir = os.path.dirname(os.path.realpath(__file__))
@@ -712,6 +756,7 @@ ctx.package_builders['vpx'] = VPXBuilder(ctx)
 ctx.package_builders['orc'] = OrcBuilder(ctx)
 ctx.package_builders['glib'] = GLibBuilder(ctx)
 ctx.package_builders['bluez'] = BlueZBuilder(ctx)
+ctx.package_builders['x265'] = X265Builder(ctx)
 
 
 desc_lines = ['supported packages:']
