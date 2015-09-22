@@ -494,6 +494,33 @@ class Qt5Builder(Builder):
 		return True
 
 
+class DaalaBuilder(Builder):
+	git_source = "https://git.xiph.org/daala.git"
+
+	def __init__(self, ctx):
+		super(DaalaBuilder, self).__init__(ctx)
+
+	def desc(self):
+		return "Daala video codec library"
+
+	def fetch(self, ctx, package_version):
+		basename = 'daala-%s' % package_version
+		git_bare = os.path.join(ctx.dl_dir, basename + '.git')
+		return self.fetch_package_git(DaalaBuilder.git_source, git_bare)
+
+	def check(self, ctx, package_version):
+		return True
+
+	def unpack(self, ctx, package_version):
+		basename = 'daala-%s' % package_version
+		git_bare = os.path.join(ctx.dl_dir, basename + '.git')
+		return self.clone_local_git_repo(git_bare, basename, 'master')
+
+	def build(self, ctx, package_version):
+		basename = 'daala-%s' % package_version
+		return self.do_config_make_build(basename, True) and self.do_make_install(basename)
+
+
 class VPXBuilder(Builder):
 	git_source = "http://git.chromium.org/webm/libvpx.git"
 
@@ -680,6 +707,7 @@ ctx.package_builders['opus'] = OpusBuilder(ctx)
 ctx.package_builders['efl'] = EFLBuilder(ctx)
 ctx.package_builders['efl1.8'] = EFL18Builder(ctx)
 ctx.package_builders['qt5'] = Qt5Builder(ctx)
+ctx.package_builders['daala'] = DaalaBuilder(ctx)
 ctx.package_builders['vpx'] = VPXBuilder(ctx)
 ctx.package_builders['orc'] = OrcBuilder(ctx)
 ctx.package_builders['glib'] = GLibBuilder(ctx)
