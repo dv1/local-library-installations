@@ -523,8 +523,11 @@ class VPXBuilder(Builder):
 
 
 class OrcBuilder(Builder):
-	orc_source="http://code.entropywave.com/download/orc"
-	orc_ext="tar.gz"
+	# Beginning with version 0.4.23, Orc uses
+	# xz instead of gzip for the tarballs
+	orc_source="http://gstreamer.freedesktop.org/src/orc"
+	orc_ext_old="tar.gz"
+	orc_ext_new="tar.xz"
 
 	def __init__(self, ctx):
 		super(OrcBuilder, self).__init__(ctx)
@@ -533,8 +536,14 @@ class OrcBuilder(Builder):
 		return "ORC Oil Runtime Compiler library"
 
 	def fetch(self, ctx, package_version):
+		orc_ext = self.get_orc_ext(package_version)
+		if not orc_ext:
+			return False
+
+		msg('Using ORC package extension %s' % orc_ext)
+
 		basename = 'orc-%s' % package_version
-		archive_filename = basename + '.' + OrcBuilder.orc_ext
+		archive_filename = basename + '.' + orc_ext
 		archive_link = OrcBuilder.orc_source + '/' + archive_filename
 		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
 
@@ -544,14 +553,30 @@ class OrcBuilder(Builder):
 		return True
 
 	def unpack(self, ctx, package_version):
+		orc_ext = self.get_orc_ext(package_version)
+		if not orc_ext:
+			return False
+
 		basename = 'orc-%s' % package_version
-		archive_filename = basename + '.' + OrcBuilder.orc_ext
+		archive_filename = basename + '.' + orc_ext
 		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
 		return self.unpack_package(basename, archive_dest)
 
 	def build(self, ctx, package_version):
 		basename = 'orc-%s' % package_version
 		return self.do_config_make_build(basename, False) and self.do_make_install(basename)
+
+	def get_orc_ext(self, package_version):
+		import re
+		ver_match = re.match('(\d*)\.(\d*)\.(\d*)', package_version)
+		if not ver_match:
+			error('Version "%s" did not match the pattern "X.Y.Z"' % package_version)
+			return False
+
+		if (int(ver_match.group(1)) >= 0) and (int(ver_match.group(2)) >= 4) and (int(ver_match.group(3)) >= 20):
+			return OrcBuilder.orc_ext_new
+		else:
+			return OrcBuilder.orc_ext_old
 
 
 
