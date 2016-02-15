@@ -743,6 +743,53 @@ class X265Builder(Builder):
 
 
 
+class SoupBuilder(Builder):
+	soup_source="http://ftp.gnome.org/pub/GNOME/sources/libsoup"
+	soup_ext="tar.xz"
+
+	def __init__(self, ctx):
+		super(SoupBuilder, self).__init__(ctx)
+
+	def desc(self):
+		return "An HTTP client/server library for GNOME"
+
+	def fetch(self, ctx, package_version):
+		basename = 'libsoup-%s' % package_version
+		split_version = package_version.split('.')
+		short_version = split_version[0] + '.' + split_version[1]
+		archive_filename = basename + '.' + SoupBuilder.soup_ext
+		archive_link = SoupBuilder.soup_source + '/' + short_version + '/' + archive_filename
+		archive_link_checksum = SoupBuilder.soup_source + '/' + short_version + '/' + basename + '.sha256sum'
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+		archive_dest_checksum = archive_dest + ".sha256sum"
+		archive_dest_checksum_tmp = archive_dest_checksum + '.tmp'
+
+		if not self.fetch_package_file(archive_filename, archive_dest, archive_dest_checksum_tmp, archive_link, archive_link_checksum):
+			return False
+
+		subprocess.call('grep "%s" "%s" >"%s"' % (archive_filename, archive_dest_checksum_tmp, archive_dest_checksum), shell = True)
+		return True
+
+	def check(self, ctx, package_version):
+		basename = 'libsoup-%s' % package_version
+		archive_filename = basename + '.' + SoupBuilder.soup_ext
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+		archive_dest_checksum = archive_dest + ".sha256sum"
+
+		return self.check_package(pkg, basename, 'sha256sum', archive_dest_checksum)
+
+	def unpack(self, ctx, package_version):
+		basename = 'libsoup-%s' % package_version
+		archive_filename = basename + '.' + SoupBuilder.soup_ext
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+		return self.unpack_package(basename, archive_dest)
+
+	def build(self, ctx, package_version):
+		basename = 'libsoup-%s' % package_version
+		return self.do_config_make_build(basename, False, extra_config = '--enable-introspection=no --enable-vala=no') and self.do_make_install(basename)
+
+
+
 
 rootdir = os.path.dirname(os.path.realpath(__file__))
 ctx = Context(rootdir)
@@ -757,6 +804,7 @@ ctx.package_builders['orc'] = OrcBuilder(ctx)
 ctx.package_builders['glib'] = GLibBuilder(ctx)
 ctx.package_builders['bluez'] = BlueZBuilder(ctx)
 ctx.package_builders['x265'] = X265Builder(ctx)
+ctx.package_builders['soup'] = SoupBuilder(ctx)
 
 
 desc_lines = ['supported packages:']
