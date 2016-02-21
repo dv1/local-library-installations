@@ -91,10 +91,11 @@ class Builder(object):
 	def __init__(self, ctx):
 		self.ctx = ctx
 
-	def fetch_package_git(self, link, bare):
-		if not os.path.exists(bare):
-			return 0 == subprocess.call('git clone --bare %s %s' % (link, bare), shell = True)
-		return True
+	def get_staging_dir(self, basename, staging_subdir):
+		if staging_subdir:
+			return os.path.join(ctx.staging_dir, staging_subdir, basename)
+		else:
+			return os.path.join(ctx.staging_dir, basename)
 
 	def fetch_package_file(self, filename, dest, dest_hash, link, link_hash):
 		if os.path.exists(dest):
@@ -108,7 +109,7 @@ class Builder(object):
 					return False
 		return True
 
-	def check_package(self, name, basename, hashcall, dest_hash):
+	def check_package(self, name, basename, hashcall, dest_hash, staging_subdir = ''):
 		olddir = os.getcwd()
 		os.chdir(self.ctx.dl_dir)
 		retval = subprocess.call('%s -c "%s" --quiet >/dev/null 2>&1' % (hashcall, dest_hash), shell = True)
@@ -117,57 +118,59 @@ class Builder(object):
 		if 0 == retval:
 			msg('%s checksum : OK' % name)
 		else:
-			msg('%s checksum : FAILED - removing downloaded files' % name)
-			p = os.path.join(self.ctx.staging_dir, basename)
-			if os.path.exists(p):
-				msg('Removing unpacked content in ' + p)
+			msg('%s checksum : FAILED' % name)
 			return False
 
 		return True
 
-	def clone_local_git_repo(self, bare_repo, basename, checkout = None):
-		staging = os.path.join(self.ctx.staging_dir, basename)
+	def clone_git_repo(self, link, basename, checkout = None, staging_subdir = ''):
+		staging = self.get_staging_dir(basename, staging_subdir)
 		if os.path.exists(staging):
 			msg('Directory %s present - not cloning anything' % staging)
 		else:
-			msg('Directory %s not present - cloning from local git repo copy' % staging)
+			msg('Directory %s not present - cloning from %s' % (staging, link))
 			if checkout:
-				if 0 != subprocess.call('git clone -b "%s" "%s" "%s"' % (checkout, bare_repo, staging), shell = True):
+				if 0 != subprocess.call('git clone -b "%s" "%s" "%s"' % (checkout, link, staging), shell = True):
 					return False
 			else:
-				if 0 != subprocess.call('git clone "%s" "%s"' % (bare_repo, staging), shell = True):
+				if 0 != subprocess.call('git clone "%s" "%s"' % (link, staging), shell = True):
 					return False
 		return True
 
-	def unpack_package(self, basename, dest):
-		staging = os.path.join(self.ctx.staging_dir, basename)
+	def unpack_package(self, basename, dest, staging_subdir = ''):
+		staging = self.get_staging_dir(basename, staging_subdir)
 		if os.path.exists(staging):
 			msg('Directory %s present - unpacking skipped' % staging)
 		else:
 			msg('Directory %s not present - unpacking' % staging)
-			if 0 != subprocess.call('tar xf "%s" -C "%s"' % (dest, self.ctx.staging_dir), shell = True):
+			unpack_rootdir = self.get_staging_dir('', staging_subdir)
+			mkdir_p(unpack_rootdir)
+			if 0 != subprocess.call('tar xf "%s" -C "%s"' % (dest, unpack_rootdir), shell = True):
 				return False
 		return True
 
-	def do_config_make_build(self, basename, is_git, extra_config = '', extra_cflags = '', extra_cxxflags = '', noconfigure = True):
-		staging = os.path.join(ctx.staging_dir, basename)
+	def do_config_make_build(self, basename, use_autogen, extra_config = '', extra_cflags = '', extra_cxxflags = '', staging_subdir = '', noconfigure = True, use_noconfig_env = False):
+		staging = self.get_staging_dir(basename, staging_subdir)
 		olddir = os.getcwd()
 		os.chdir(staging)
 		success = True
-		if is_git:
+		if use_autogen:
 			if noconfigure:
-				success = success and (0 == ctx.call_with_env('./autogen.sh --noconfigure'))
+				if use_noconfig_env:
+					success = success and (0 == ctx.call_with_env('NOCONFIGURE=1 ./autogen.sh'))
+				else:
+					success = success and (0 == ctx.call_with_env('./autogen.sh --noconfigure'))
 			else:
 				success = success and (0 == ctx.call_with_env('./autogen.sh --prefix="%s" %s' % (ctx.inst_dir, extra_config), 'export CFLAGS="$CFLAGS %s" ; export CXXFLAGS="$CXXFLAGS %s" ' % (extra_cxxflags, extra_cxxflags)))
-		if (not is_git) or (is_git and noconfigure):
+		if (not use_autogen) or (use_autogen and noconfigure):
 				success = success and (0 == ctx.call_with_env('./configure --prefix="%s" %s' % (ctx.inst_dir, extra_config), 'export CFLAGS="$CFLAGS %s" ; export CXXFLAGS="$CXXFLAGS %s" ' % (extra_cxxflags, extra_cxxflags)))
 
 		success = success and (0 == ctx.call_with_env('make "-j%d"' % ctx.num_jobs))
 		os.chdir(olddir)
 		return success
 
-	def do_make_install(self, basename, parallel = True):
-		staging = os.path.join(ctx.staging_dir, basename)
+	def do_make_install(self, basename, parallel = True, staging_subdir = ''):
+		staging = self.get_staging_dir(basename, staging_subdir)
 		olddir = os.getcwd()
 		os.chdir(staging)
 		if parallel:
@@ -209,7 +212,7 @@ class OpusBuilder(Builder):
 		archive_filename = basename + '.' + OpusBuilder.opus_ext
 		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
 		archive_dest_checksum = os.path.join(ctx.dl_dir, 'opus-sha1sums')
-		return self.check_package('opus', basename, 'sha1sum', archive_dest_checksum)
+		return self.check_package(name = 'opus', basename = basename, hashcall = 'sha1sum', dest_hash = archive_dest_checksum)
 
 	def unpack(self, ctx, package_version):
 		basename = 'opus-%s' % package_version
@@ -219,7 +222,7 @@ class OpusBuilder(Builder):
 
 	def build(self, ctx, package_version):
 		basename = 'opus-%s' % package_version
-		return self.do_config_make_build(basename, False) and self.do_make_install(basename)
+		return self.do_config_make_build(basename = basename, use_autogen = False) and self.do_make_install(basename)
 
 
 
@@ -247,10 +250,10 @@ class GStreamer10Builder(Builder):
 	def fetch(self, ctx, package_version):
 		for pkg in GStreamer10Builder.pkgs:
 			basename = '%s-%s' % (pkg, package_version)
+			msg('GStreamer 1.0: fetching ' + basename, 4)
 			if package_version == 'git':
 				git_link = GStreamer10Builder.git_source + '/' + pkg
-				git_bare = os.path.join(ctx.dl_dir, basename + '.git')
-				if not self.fetch_package_git(git_link, git_bare):
+				if not self.clone_git_repo(git_link, basename, staging_subdir = 'gstreamer1.0'):
 					return False
 			else:
 				archive_filename = basename + '.' + GStreamer10Builder.pkg_ext
@@ -265,41 +268,40 @@ class GStreamer10Builder(Builder):
 			return True
 		for pkg in GStreamer10Builder.pkgs:
 			basename = '%s-%s' % (pkg, package_version)
+			msg('GStreamer 1.0: checking ' + basename, 4)
 			archive_filename = basename + '.' + GStreamer10Builder.pkg_ext
 			archive_link = GStreamer10Builder.pkg_source + '/' + pkg + '/' + archive_filename
 			archive_dest = os.path.join(ctx.dl_dir, archive_filename)
 			archive_dest_checksum = archive_dest + '.' + GStreamer10Builder.pkg_checksum
 
-			if not self.check_package(pkg, basename, 'sha256sum', archive_dest_checksum):
+			if not self.check_package(name = pkg, basename = basename, hashcall = 'sha256sum', dest_hash = archive_dest_checksum, staging_subdir = 'gstreamer1.0'):
 				return False
-		return True	
+		return True
 
 	def unpack(self, ctx, package_version):
 		for pkg in GStreamer10Builder.pkgs:
 			basename = '%s-%s' % (pkg, package_version)
-			if package_version == 'git':
-				git_bare = os.path.join(ctx.dl_dir, basename + '.git')
-				if not self.clone_local_git_repo(git_bare, basename):
-					return False
-			else:
+			msg('GStreamer 1.0: unpacking ' + basename, 4)
+			if package_version != 'git':
 				archive_filename = basename + '.' + GStreamer10Builder.pkg_ext
 				archive_dest = os.path.join(ctx.dl_dir, archive_filename)
-				if not self.unpack_package(basename, archive_dest):
+				if not self.unpack_package(basename, archive_dest, staging_subdir = 'gstreamer1.0'):
 					return False
 		return True
 
 	def build(self, ctx, package_version):
 		for pkg in GStreamer10Builder.pkgs:
 			basename = '%s-%s' % (pkg, package_version)
+			msg('GStreamer 1.0: building ' + basename, 4)
 			extra_config = '--disable-examples'
 			if pkg == 'gst-plugins-bad':
 				extra_config += ' --disable-directfb --disable-modplug'
 			elif pkg == 'gstreamer':
 				extra_config += ' --with-bash-completion-dir=' + ctx.inst_dir
 
-			if not self.do_config_make_build(basename = basename, is_git = (package_version == 'git'), extra_config = extra_config):
+			if not self.do_config_make_build(basename = basename, use_autogen = (package_version == 'git'), extra_config = extra_config, staging_subdir = 'gstreamer1.0'):
 				return False
-			if not self.do_make_install(basename):
+			if not self.do_make_install(basename, staging_subdir = 'gstreamer1.0'):
 				return False
 		return True
 
@@ -307,41 +309,58 @@ class GStreamer10Builder(Builder):
 
 class EFLBuilder(Builder):
 	pkgs = [ \
-		"core", \
-		"evas_generic_loaders", \
-		"emotion_generic_players", \
-		"elementary", \
-		"expedite", \
-		"enventor" \
-	] # ethumb, evil
-	efl_source = 'http://download.enlightenment.org/releases'
-	git_sources = { \
-		'core':'git://git.enlightenment.org/core/efl.git' , \
-		'elementary':'git://git.enlightenment.org/core/elementary.git' , \
-		'expedite':'git://git.enlightenment.org/tools/expedite.git' , \
-		'evas_generic_loaders':'git://git.enlightenment.org/core/evas_generic_loaders.git' \
-	}
-	git_modules = ['core','elementary','evas_generic_loaders','expedite']
-	pkg_ext = 'tar.bz2'
+		("efl", "libs", "1.17.0", ""),\
+		("emotion_generic_players", "libs", "1.17.0", ""),\
+		("evas_generic_loaders", "libs", "1.17.0", ""),\
+		("elementary", "libs", "1.17.0", ""),\
+		("terminology", "apps", "0.9.1", ""),\
+		("rage", "apps", "0.1.4", ""),\
+		("enventor", "apps", "0.7.0", ""), \
+	]
+	pkg_ext = 'tar.gz'
+	efl_source = 'http://download.enlightenment.org/rel'
+	git_source = "git://git.enlightenment.org"
+	git_repos = [
+		("core/efl.git", "efl"),
+		("core/emotion_generic_players.git", "emotion_generic_players"),
+		("core/evas_generic_loaders.git", "evas_generic_loaders"),
+		("core/elementary.git", "elementary"),
+		("apps/empc.git", "empc"),
+		("apps/ephoto.git", "ephoto"),
+		("apps/equate.git", "equate"),
+		("apps/eruler.git", "eruler"),
+		("apps/express.git", "express"),
+		("apps/terminology.git", "terminology"),
+		("apps/rage.git", "rage"),
+		("tools/edi.git", "edi"),
+		("tools/edje_list.git", "edje_list"),
+		("tools/edje_smart_thumb.git", "edje_smart_thumb"),
+		("tools/eflete.git", "eflete"),
+		("tools/elm-theme-viewer.git", "elm-theme-viewer"),
+		("tools/exactness.git", "exactness"),
+		("tools/expedite.git", "expedite"),
+	]
 
 	def __init__(self, ctx):
 		super(EFLBuilder, self).__init__(ctx)
 
 	def desc(self):
-		return "Enlightenment Foundation Libraries"
-
+		return "Enlightenment Foundation Libraries version 1.8 or newer"
+		
 	def fetch(self, ctx, package_version):
 		if package_version == 'git':
-			for basename in EFLBuilder.git_modules:
-				git_link = EFLBuilder.git_sources[basename]
-				git_bare = os.path.join(ctx.dl_dir, basename + '.git')
-				if not self.fetch_package_git(git_link, git_bare):
+			for repo in EFLBuilder.git_repos:
+				basename = repo[1] + "-git"
+				msg('EFL: fetching ' + basename, 4)
+				git_link = EFLBuilder.git_source + '/' + repo[0]
+				if not self.clone_git_repo(git_link, basename, staging_subdir = 'efl'):
 					return False
 		else:
 			for pkg in EFLBuilder.pkgs:
-				basename = '%s-%s' % (pkg, package_version)
+				basename = '%s-%s' % (pkg[0], pkg[2])
+				msg('EFL: fetching ' + basename, 4)
 				archive_filename = basename + '.' + EFLBuilder.pkg_ext
-				archive_link = EFLBuilder.efl_source + '/' + archive_filename
+				archive_link = EFLBuilder.efl_source + ('/%s/%s/%s' % (pkg[1], pkg[0], archive_filename))
 				archive_dest = os.path.join(ctx.dl_dir, archive_filename)
 				if not self.fetch_package_file(archive_filename, archive_dest, None, archive_link, None):
 					return False
@@ -351,90 +370,37 @@ class EFLBuilder(Builder):
 		return True
 
 	def unpack(self, ctx, package_version):
-		if package_version == 'git':
-			for basename in EFLBuilder.git_modules:
-				git_bare = os.path.join(ctx.dl_dir, basename + '.git')
-				if not self.clone_local_git_repo(git_bare, basename + '.git'):
-					return False
-		else:
+		if package_version != 'git':
 			for pkg in EFLBuilder.pkgs:
-				basename = '%s-%s' % (pkg, package_version)
+				basename = '%s-%s' % (pkg[0], pkg[2])
+				msg('EFL: unpacking ' + basename, 4)
 				archive_filename = basename + '.' + EFLBuilder.pkg_ext
 				archive_dest = os.path.join(ctx.dl_dir, archive_filename)
-				if not self.unpack_package(basename, archive_dest):
+				if not self.unpack_package(basename, archive_dest, staging_subdir = 'efl'):
 					return False
 		return True
 
 	def build(self, ctx, package_version):
 		if package_version == 'git':
-			for key in EFLBuilder.git_modules:
-				basename = key + '.git'
-				if not self.do_config_make_build(basename, True, noconfigure = False):
+			for repo in EFLBuilder.git_repos:
+				basename = repo[1] + "-git"
+				msg('EFL: building ' + basename, 4)
+				if not self.do_config_make_build(basename = basename, use_autogen = True, staging_subdir = 'efl', use_noconfig_env = True):
 					return False
-				if not self.do_make_install(basename):
+				if not self.do_make_install(basename, staging_subdir = 'efl'):
 					return False
 		else:
 			for pkg in EFLBuilder.pkgs:
-				basename = '%s-%s' % (pkg, package_version)
-				if not self.do_config_make_build(basename, False):
+				if pkg[3]:
+					ver = pkg[3]
+				else:
+					ver = pkg[2]
+				basename = '%s-%s' % (pkg[0], ver)
+				msg('EFL: building ' + basename, 4)
+				if not self.do_config_make_build(basename = basename, use_autogen = False, staging_subdir = 'efl', use_noconfig_env = True):
 					return False
-				if not self.do_make_install(basename):
+				if not self.do_make_install(basename, staging_subdir = 'efl'):
 					return False
-		return True
-
-
-
-class EFL18Builder(Builder):
-	pkgs = [ \
-		("efl", "libs", "1.13.0", ""),\
-		("evas_generic_loaders", "libs", "1.13.0", ""),\
-		("emotion_generic_players", "libs", "1.13.0", ""),\
-		("elementary", "libs", "1.13.0", ""),\
-		("terminology", "apps", "0.8.0", ""),\
-		("enventor", "apps", "0.5.0", ""), \
-	]
-	pkg_ext = 'tar.gz'
-	efl_source = 'http://download.enlightenment.org/rel'
-
-	def __init__(self, ctx):
-		super(EFL18Builder, self).__init__(ctx)
-
-	def desc(self):
-		return "Enlightenment Foundation Libraries version 1.8 or newer"
-		
-	def fetch(self, ctx, package_version):
-		for pkg in EFL18Builder.pkgs:
-			basename = '%s-%s' % (pkg[0], pkg[2])
-			archive_filename = basename + '.' + EFL18Builder.pkg_ext
-			archive_link = EFL18Builder.efl_source + ('/%s/%s/%s' % (pkg[1], pkg[0], archive_filename))
-			archive_dest = os.path.join(ctx.dl_dir, archive_filename)
-			if not self.fetch_package_file(archive_filename, archive_dest, None, archive_link, None):
-				return False
-		return True
-
-	def check(self, ctx, package_version):
-		return True
-
-	def unpack(self, ctx, package_version):
-		for pkg in EFL18Builder.pkgs:
-			basename = '%s-%s' % (pkg[0], pkg[2])
-			archive_filename = basename + '.' + EFL18Builder.pkg_ext
-			archive_dest = os.path.join(ctx.dl_dir, archive_filename)
-			if not self.unpack_package(basename, archive_dest):
-				return False
-		return True
-
-	def build(self, ctx, package_version):
-		for pkg in EFL18Builder.pkgs:
-			if pkg[3]:
-				ver = pkg[3]
-			else:
-				ver = pkg[2]
-			basename = '%s-%s' % (pkg[0], ver)
-			if not self.do_config_make_build(basename, False):
-				return False
-			if not self.do_make_install(basename, False):
-				return False
 		return True
 
 
@@ -469,7 +435,7 @@ class Qt5Builder(Builder):
 		archive_filename = basename + '.' + Qt5Builder.pkg_ext
 		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
 		archive_dest_checksum = os.path.join(ctx.dl_dir, 'qt5-md5sums')
-		return self.check_package('qt5', basename, 'md5sum', archive_dest_checksum)
+		return self.check_package(name = 'qt5', basename = basename, hashcall = 'md5sum', dest_hash = archive_dest_checksum)
 
 	def unpack(self, ctx, package_version):
 		basename = 'qt-everywhere-opensource-src-' + package_version
@@ -505,47 +471,45 @@ class DaalaBuilder(Builder):
 
 	def fetch(self, ctx, package_version):
 		basename = 'daala-%s' % package_version
-		git_bare = os.path.join(ctx.dl_dir, basename + '.git')
-		return self.fetch_package_git(DaalaBuilder.git_source, git_bare)
+		return self.clone_git_repo(DaalaBuilder.git_source, basename, 'master')
 
 	def check(self, ctx, package_version):
 		return True
 
 	def unpack(self, ctx, package_version):
-		basename = 'daala-%s' % package_version
-		git_bare = os.path.join(ctx.dl_dir, basename + '.git')
-		return self.clone_local_git_repo(git_bare, basename, 'master')
+		return True
 
 	def build(self, ctx, package_version):
 		basename = 'daala-%s' % package_version
-		return self.do_config_make_build(basename, True) and self.do_make_install(basename)
+		return self.do_config_make_build(basename = basename, use_autogen = True) and self.do_make_install(basename)
 
 
 class VPXBuilder(Builder):
-	git_source = "http://git.chromium.org/webm/libvpx.git"
+	git_source = "https://chromium.googlesource.com/webm/libvpx"
 
 	def __init__(self, ctx):
 		super(VPXBuilder, self).__init__(ctx)
 
 	def desc(self):
-		return "libvpx VP8 video codec library"
+		return "libvpx VP8/VP9 video codec library"
 
 	def fetch(self, ctx, package_version):
 		basename = 'libvpx-%s' % package_version
-		git_bare = os.path.join(ctx.dl_dir, basename + '.git')
-		return self.fetch_package_git(VPXBuilder.git_source, git_bare)
+		if package_version == 'git':
+			checkout = 'master'
+		else:
+			checkout = 'v' + package_version
+		return self.clone_git_repo(VPXBuilder.git_source, basename, checkout)
 
 	def check(self, ctx, package_version):
 		return True
 
 	def unpack(self, ctx, package_version):
-		basename = 'libvpx-%s' % package_version
-		git_bare = os.path.join(ctx.dl_dir, basename + '.git')
-		return self.clone_local_git_repo(git_bare, basename, 'v' + package_version)
+		return True
 
 	def build(self, ctx, package_version):
 		basename = 'libvpx-%s' % package_version
-		return self.do_config_make_build(basename, False, extra_cflags = '-fPIC -DPIC', extra_cxxflags = '-fPIC -DPIC') and self.do_make_install(basename)
+		return self.do_config_make_build(basename = basename, use_autogen = False, extra_cflags = '-fPIC -DPIC', extra_cxxflags = '-fPIC -DPIC') and self.do_make_install(basename)
 
 
 
@@ -591,7 +555,7 @@ class OrcBuilder(Builder):
 
 	def build(self, ctx, package_version):
 		basename = 'orc-%s' % package_version
-		return self.do_config_make_build(basename, False) and self.do_make_install(basename)
+		return self.do_config_make_build(basename = basename, use_autogen = False) and self.do_make_install(basename)
 
 	def get_orc_ext(self, package_version):
 		import re
@@ -641,7 +605,7 @@ class GLibBuilder(Builder):
 		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
 		archive_dest_checksum = archive_dest + '.sha256sum'
 
-		return self.check_package(pkg, basename, 'sha256sum', archive_dest_checksum)
+		return self.check_package(name = pkg, basename = basename, hashcall = 'sha256sum', dest_hash = archive_dest_checksum)
 
 	def unpack(self, ctx, package_version):
 		basename = 'glib-%s' % package_version
@@ -651,7 +615,7 @@ class GLibBuilder(Builder):
 
 	def build(self, ctx, package_version):
 		basename = 'glib-%s' % package_version
-		return self.do_config_make_build(basename, False) and self.do_make_install(basename)
+		return self.do_config_make_build(basename = basename, use_autogen = False) and self.do_make_install(basename)
 
 
 
@@ -685,7 +649,7 @@ class BlueZBuilder(Builder):
 		archive_filename = basename + '.' + BlueZBuilder.bluez_ext
 		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
 		archive_dest_checksum = os.path.join(ctx.dl_dir, 'bluez-sha256sums')
-		return self.check_package('opus', basename, 'sha256sum', archive_dest_checksum)
+		return self.check_package(name = 'opus', basename = basename, hashcall = 'sha256sum', dest_hash = archive_dest_checksum)
 
 	def unpack(self, ctx, package_version):
 		basename = 'bluez-%s' % package_version
@@ -695,7 +659,7 @@ class BlueZBuilder(Builder):
 
 	def build(self, ctx, package_version):
 		basename = 'bluez-%s' % package_version
-		return self.do_config_make_build(basename, False, extra_config = '--with-systemdunitdir="%s"' % os.path.join(ctx.inst_dir, 'lib', 'systemd', 'system')) and self.do_make_install(basename)
+		return self.do_config_make_build(basename = basename, use_autogen = False, extra_config = '--with-systemdunitdir="%s"' % os.path.join(ctx.inst_dir, 'lib', 'systemd', 'system')) and self.do_make_install(basename)
 
 
 class X265Builder(Builder):
@@ -776,7 +740,7 @@ class SoupBuilder(Builder):
 		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
 		archive_dest_checksum = archive_dest + ".sha256sum"
 
-		return self.check_package(pkg, basename, 'sha256sum', archive_dest_checksum)
+		return self.check_package(name = pkg, basename = basename, hashcall = 'sha256sum', dest_hash = archive_dest_checksum)
 
 	def unpack(self, ctx, package_version):
 		basename = 'libsoup-%s' % package_version
@@ -786,7 +750,7 @@ class SoupBuilder(Builder):
 
 	def build(self, ctx, package_version):
 		basename = 'libsoup-%s' % package_version
-		return self.do_config_make_build(basename, False, extra_config = '--enable-introspection=no --enable-vala=no') and self.do_make_install(basename)
+		return self.do_config_make_build(basename = basename, use_autogen = False, extra_config = '--enable-introspection=no --enable-vala=no') and self.do_make_install(basename)
 
 
 
@@ -796,7 +760,6 @@ ctx = Context(rootdir)
 ctx.package_builders['gstreamer-1.0'] = GStreamer10Builder(ctx)
 ctx.package_builders['opus'] = OpusBuilder(ctx)
 ctx.package_builders['efl'] = EFLBuilder(ctx)
-ctx.package_builders['efl1.8'] = EFL18Builder(ctx)
 ctx.package_builders['qt5'] = Qt5Builder(ctx)
 ctx.package_builders['daala'] = DaalaBuilder(ctx)
 ctx.package_builders['vpx'] = VPXBuilder(ctx)
