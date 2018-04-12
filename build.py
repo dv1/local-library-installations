@@ -796,6 +796,41 @@ class BoostBuilder(Builder):
 		return success
 
 
+class LibniceBuilder(Builder):
+	libnice_source="https://nice.freedesktop.org/releases"
+	libnice_ext="tar.gz"
+
+	def __init__(self, ctx):
+		super(LibniceBuilder, self).__init__(ctx)
+
+	def desc(self):
+		return "An implementation of the IETF's Interactive Connectivity Establishment (ICE) standard (RFC 5245)"
+
+	def fetch(self, ctx, package_version):
+		basename = 'libnice-%s' % package_version
+		archive_filename = basename + '.' + LibniceBuilder.libnice_ext
+		archive_link = LibniceBuilder.libnice_source + '/' + archive_filename
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+
+		if not self.fetch_package_file(archive_filename, archive_dest, None, archive_link, None):
+			return False
+
+		return True
+
+	def check(self, ctx, package_version):
+		return True
+
+	def unpack(self, ctx, package_version):
+		basename = 'libnice-%s' % package_version
+		archive_filename = basename + '.' + LibniceBuilder.libnice_ext
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+		return self.unpack_package(basename, archive_dest)
+
+	def build(self, ctx, package_version):
+		basename = 'libnice-%s' % package_version
+		return self.do_config_make_build(basename = basename, use_autogen = False, extra_config = '--enable-introspection=no --with-gstreamer') and self.do_make_install(basename)
+
+
 
 
 rootdir = os.path.dirname(os.path.realpath(__file__))
@@ -812,6 +847,7 @@ ctx.package_builders['bluez'] = BlueZBuilder(ctx)
 ctx.package_builders['x265'] = X265Builder(ctx)
 ctx.package_builders['soup'] = SoupBuilder(ctx)
 ctx.package_builders['boost'] = BoostBuilder(ctx)
+ctx.package_builders['libnice'] = LibniceBuilder(ctx)
 
 
 desc_lines = ['supported packages:']
