@@ -838,6 +838,51 @@ class LibniceBuilder(Builder):
 		return self.do_config_make_build(basename = basename, use_autogen = False, extra_config = '--enable-introspection=no --with-gstreamer') and self.do_make_install(basename)
 
 
+class PipewireBuilder(Builder):
+	git_source="https://github.com/PipeWire/pipewire.git"
+
+	def __init__(self, ctx):
+		super(PipewireBuilder, self).__init__(ctx)
+
+	def desc(self):
+		return "Multimedia processing graphs"
+
+	def fetch(self, ctx, package_version):
+		basename = 'pipewire-%s' % package_version
+		if package_version == 'git':
+			if not self.clone_git_repo(PipewireBuilder.git_source, basename):
+				return False
+		else:
+			error('Only git-based pipewire builds are currently supported')
+			return
+		return True
+
+	def check(self, ctx, package_version):
+		if package_version == 'git':
+			return True
+
+	def unpack(self, ctx, package_version):
+		if package_version == 'git':
+			return True
+
+	def build(self, ctx, package_version):
+		basename = 'pipewire-%s' % package_version
+
+		olddir = os.getcwd()
+		staging = os.path.join(ctx.staging_dir, basename, 'build')
+		mkdir_p(staging)
+		os.chdir(staging)
+
+		success = True
+		success = success and (0 == ctx.call_with_env('meson .. -Dsystemd=false -Dprefix="%s" -Dlibdir=lib' % ctx.inst_dir))
+		success = success and (0 == ctx.call_with_env('ninja'))
+		success = success and (0 == ctx.call_with_env('ninja install'))
+
+		os.chdir(olddir)
+
+		return success
+
+
 
 
 rootdir = os.path.dirname(os.path.realpath(__file__))
@@ -855,6 +900,7 @@ ctx.package_builders['x265'] = X265Builder(ctx)
 ctx.package_builders['soup'] = SoupBuilder(ctx)
 ctx.package_builders['boost'] = BoostBuilder(ctx)
 ctx.package_builders['libnice'] = LibniceBuilder(ctx)
+ctx.package_builders['pipewire'] = PipewireBuilder(ctx)
 
 
 desc_lines = ['supported packages:']
