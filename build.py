@@ -709,6 +709,7 @@ class X265Builder(Builder):
 
 class SoupBuilder(Builder):
 	soup_source="http://ftp.gnome.org/pub/GNOME/sources/libsoup"
+	git_source="https://gitlab.gnome.org/GNOME/libsoup.git"
 	soup_ext="tar.xz"
 
 	def __init__(self, ctx):
@@ -719,22 +720,26 @@ class SoupBuilder(Builder):
 
 	def fetch(self, ctx, package_version):
 		basename = 'libsoup-%s' % package_version
-		split_version = package_version.split('.')
-		short_version = split_version[0] + '.' + split_version[1]
-		archive_filename = basename + '.' + SoupBuilder.soup_ext
-		archive_link = SoupBuilder.soup_source + '/' + short_version + '/' + archive_filename
-		archive_link_checksum = SoupBuilder.soup_source + '/' + short_version + '/' + basename + '.sha256sum'
-		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
-		archive_dest_checksum = archive_dest + ".sha256sum"
-		archive_dest_checksum_tmp = archive_dest_checksum + '.tmp'
-
-		if not self.fetch_package_file(archive_filename, archive_dest, archive_dest_checksum_tmp, archive_link, archive_link_checksum):
-			return False
-
-		subprocess.call('grep "%s" "%s" >"%s"' % (archive_filename, archive_dest_checksum_tmp, archive_dest_checksum), shell = True)
+		if package_version == 'git':
+			if not self.clone_git_repo(SoupBuilder.git_source, basename):
+				return False
+		else:
+			split_version = package_version.split('.')
+			short_version = split_version[0] + '.' + split_version[1]
+			archive_filename = basename + '.' + SoupBuilder.soup_ext
+			archive_link = SoupBuilder.soup_source + '/' + short_version + '/' + archive_filename
+			archive_link_checksum = SoupBuilder.soup_source + '/' + short_version + '/' + basename + '.sha256sum'
+			archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+			archive_dest_checksum = archive_dest + ".sha256sum"
+			archive_dest_checksum_tmp = archive_dest_checksum + '.tmp'
+			if not self.fetch_package_file(archive_filename, archive_dest, archive_dest_checksum_tmp, archive_link, archive_link_checksum):
+				return False
+			subprocess.call('grep "%s" "%s" >"%s"' % (archive_filename, archive_dest_checksum_tmp, archive_dest_checksum), shell = True)
 		return True
 
 	def check(self, ctx, package_version):
+		if package_version == 'git':
+			return True
 		basename = 'libsoup-%s' % package_version
 		archive_filename = basename + '.' + SoupBuilder.soup_ext
 		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
@@ -743,6 +748,8 @@ class SoupBuilder(Builder):
 		return self.check_package(name = pkg, basename = basename, hashcall = 'sha256sum', dest_hash = archive_dest_checksum)
 
 	def unpack(self, ctx, package_version):
+		if package_version == 'git':
+			return True
 		basename = 'libsoup-%s' % package_version
 		archive_filename = basename + '.' + SoupBuilder.soup_ext
 		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
@@ -750,7 +757,7 @@ class SoupBuilder(Builder):
 
 	def build(self, ctx, package_version):
 		basename = 'libsoup-%s' % package_version
-		return self.do_config_make_build(basename = basename, use_autogen = False, extra_config = '--enable-introspection=no --enable-vala=no') and self.do_make_install(basename)
+		return self.do_config_make_build(basename = basename, use_autogen = (package_version == 'git'), extra_config = '--enable-introspection=no --enable-vala=no') and self.do_make_install(basename)
 
 
 class BoostBuilder(Builder):
