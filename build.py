@@ -139,6 +139,15 @@ class Builder(object):
 					return False
 		return True
 
+	def init_git_submodules(self, basename, staging_subdir = ''):
+		staging = self.get_staging_dir(basename, staging_subdir)
+		olddir = os.getcwd()
+		os.chdir(staging)
+		success = True
+		success = success and (0 == ctx.call_with_env('git submodule init ; git submodule sync ; git submodule update'))
+		os.chdir(olddir)
+		return success
+
 	def unpack_package(self, basename, dest, staging_subdir = ''):
 		staging = self.get_staging_dir(basename, staging_subdir)
 		if os.path.exists(staging):
