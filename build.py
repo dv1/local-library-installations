@@ -317,20 +317,41 @@ class GStreamer10Builder(Builder):
 		return True
 
 	def build(self, ctx, package_version):
-		for pkg in GStreamer10Builder.pkgs:
-			basename = '%s-%s' % (pkg, package_version)
-			msg('GStreamer 1.0: building ' + basename, 4)
-			extra_config = '--disable-examples'
-			if pkg == 'gst-plugins-bad':
-				extra_config += ' --disable-directfb --disable-modplug'
-			elif pkg == 'gstreamer':
-				extra_config += ' --with-bash-completion-dir=' + ctx.inst_dir
+		if package_version != 'git':
+			gst_version = self.get_gst_version(package_version)
+		if (package_version == 'git') or ((gst_version['major'] >= 1) and (gst_version['minor'] >= 16) and (gst_version['rev'] >= 0)):
+			for pkg in GStreamer10Builder.pkgs:
+				basename = '%s-%s' % (pkg, package_version)
+				msg('GStreamer 1.0: building ' + basename, 4)
+				extra_config = '-Dexamples=disabled'
+				if pkg == 'gst-plugins-bad':
+					extra_config += ' -Ddirectfb=disabled -Dmodplug=disabled'
 
-			if not self.do_config_make_build(basename = basename, use_autogen = (package_version == 'git'), extra_config = extra_config, staging_subdir = 'gstreamer1.0'):
-				return False
-			if not self.do_make_install(basename, staging_subdir = 'gstreamer1.0'):
-				return False
+				if not self.do_meson_ninja_build(basename = basename, extra_config = extra_config, staging_subdir = 'gstreamer1.0'):
+					return False
+		else:
+			for pkg in GStreamer10Builder.pkgs:
+				basename = '%s-%s' % (pkg, package_version)
+				msg('GStreamer 1.0: building ' + basename, 4)
+				extra_config = '--disable-examples'
+				if pkg == 'gst-plugins-bad':
+					extra_config += ' --disable-directfb --disable-modplug'
+				elif pkg == 'gstreamer':
+					extra_config += ' --with-bash-completion-dir=' + ctx.inst_dir
+
+				if not self.do_config_make_build(basename = basename, use_autogen = (package_version == 'git'), extra_config = extra_config, staging_subdir = 'gstreamer1.0'):
+					return False
+				if not self.do_make_install(basename, staging_subdir = 'gstreamer1.0'):
+					return False
 		return True
+
+	def get_gst_version(self, package_version):
+		import re
+		ver_match = re.match('(\d*)\.(\d*)\.(\d*)', package_version)
+		if not ver_match:
+			error('Version "%s" did not match the pattern "X.Y.Z"' % package_version)
+			return None
+		return { 'major': int(ver_match.group(1)), 'minor': int(ver_match.group(2)), 'rev': int(ver_match.group(3)) }
 
 
 
