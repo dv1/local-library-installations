@@ -180,6 +180,19 @@ class Builder(object):
 		os.chdir(olddir)
 		return success
 
+	def do_meson_ninja_build(self, basename, extra_config = '', extra_cflags = '', extra_cxxflags = '', staging_subdir = '', build_subdir = 'build'):
+		staging = self.get_staging_dir(basename, staging_subdir)
+		builddir = os.path.join(staging, build_subdir)
+		olddir = os.getcwd()
+		mkdir_p(builddir)
+		os.chdir(builddir)
+		success = True
+		success = success and (0 == ctx.call_with_env('meson -Dprefix="%s" %s' % (ctx.inst_dir, extra_config), 'export CFLAGS="$CFLAGS %s" ; export CXXFLAGS="$CXXFLAGS %s" ' % (extra_cxxflags, extra_cxxflags)))
+		success = success and (0 == ctx.call_with_env('ninja "-j%d"' % ctx.num_jobs))
+		success = success and (0 == ctx.call_with_env('ninja install "-j%d"' % ctx.num_jobs))
+		os.chdir(olddir)
+		return success
+
 
 
 class OpusBuilder(Builder):
