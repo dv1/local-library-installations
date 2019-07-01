@@ -938,6 +938,60 @@ class PipewireBuilder(Builder):
 		return success
 
 
+class FFmpegBuilder(Builder):
+	ffmpeg_source="https://ffmpeg.org/releases"
+	git_source="https://git.ffmpeg.org/ffmpeg.git"
+	ffmpeg_ext="tar.xz"
+
+	def __init__(self, ctx):
+		super(FFmpegBuilder, self).__init__(ctx)
+
+	def desc(self):
+		return "FFmpeg"
+
+	def fetch(self, ctx, package_version):
+		basename = 'ffmpeg-%s' % package_version
+		if package_version == 'git':
+			if not self.clone_git_repo(FFmpegBuilder.git_source, basename):
+				return False
+		else:
+			archive_filename = basename + '.' + FFmpegBuilder.ffmpeg_ext
+			archive_link = FFmpegBuilder.ffmpeg_source + '/' + archive_filename
+			archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+
+			if not self.fetch_package_file(archive_filename, archive_dest, None, archive_link, None):
+				return False
+		return True
+
+	def check(self, ctx, package_version):
+		return True
+
+	def unpack(self, ctx, package_version):
+		if package_version == 'git':
+			return True
+		basename = 'ffmpeg-%s' % package_version
+		archive_filename = basename + '.' + FFmpegBuilder.ffmpeg_ext
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+
+		return self.unpack_package(basename, archive_dest)
+
+	def build(self, ctx, package_version):
+		basename = 'ffmpeg-%s' % package_version
+
+		olddir = os.getcwd()
+		staging = os.path.join(ctx.staging_dir, basename)
+		os.chdir(staging)
+
+		success = True
+		success = success and (0 == ctx.call_with_env('./configure --enable-shared --disable-static --prefix="%s"' % ctx.inst_dir))
+		success = success and (0 == ctx.call_with_env('make "-j%d"' % ctx.num_jobs))
+		success = success and (0 == ctx.call_with_env('make install "-j%d"' % ctx.num_jobs))
+
+		os.chdir(olddir)
+
+		return success
+
+
 
 
 rootdir = os.path.dirname(os.path.realpath(__file__))
@@ -956,6 +1010,7 @@ ctx.package_builders['soup'] = SoupBuilder(ctx)
 ctx.package_builders['boost'] = BoostBuilder(ctx)
 ctx.package_builders['libnice'] = LibniceBuilder(ctx)
 ctx.package_builders['pipewire'] = PipewireBuilder(ctx)
+ctx.package_builders['ffmpeg'] = FFmpegBuilder(ctx)
 
 
 desc_lines = ['supported packages:']
