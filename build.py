@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 
-import os, subprocess, sys, hashlib, argparse
+import os, subprocess, sys, hashlib, argparse, shutil
 
 
 def mkdir_p(path):
@@ -186,7 +186,10 @@ class Builder(object):
 		staging = self.get_staging_dir(basename, staging_subdir)
 		builddir = os.path.join(staging, build_subdir)
 		olddir = os.getcwd()
-		mkdir_p(builddir)
+		if os.path.exists(builddir):
+			msg('Build subdirectory "%s" already exits; deleting to do a rebuild from scratch' % builddir)
+			shutil.rmtree(builddir)
+		os.makedirs(builddir)
 		os.chdir(builddir)
 		success = True
 		success = success and (0 == ctx.call_with_env('meson -Dprefix="%s" -Dlibdir=lib %s' % (ctx.inst_dir, extra_config), 'export CFLAGS="$CFLAGS %s" ; export CXXFLAGS="$CXXFLAGS %s" ' % (extra_cxxflags, extra_cxxflags)))
