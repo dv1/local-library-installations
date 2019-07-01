@@ -568,16 +568,23 @@ class OrcBuilder(Builder):
 
 	def build(self, ctx, package_version):
 		basename = 'orc-%s' % package_version
-		return self.do_config_make_build(basename = basename, use_autogen = False) and self.do_make_install(basename)
+		orc_version = self.get_orc_version(package_version)
+		if (orc_version['major'] >= 0) and (orc_version['minor'] >= 4) and (orc_version['rev'] >= 29):
+			return self.do_meson_ninja_build(basename = basename)
+		else:
+			return self.do_config_make_build(basename = basename, use_autogen = False) and self.do_make_install(basename)
 
-	def get_orc_ext(self, package_version):
+	def get_orc_version(self, package_version):
 		import re
 		ver_match = re.match('(\d*)\.(\d*)\.(\d*)', package_version)
 		if not ver_match:
 			error('Version "%s" did not match the pattern "X.Y.Z"' % package_version)
-			return False
+			return None
+		return { 'major': int(ver_match.group(1)), 'minor': int(ver_match.group(2)), 'rev': int(ver_match.group(3)) }
 
-		if (int(ver_match.group(1)) >= 0) and (int(ver_match.group(2)) >= 4) and (int(ver_match.group(3)) >= 20):
+	def get_orc_ext(self, package_version):
+		orc_version = self.get_orc_version(package_version)
+		if (orc_version['major'] >= 0) and (orc_version['minor'] >= 4) and (orc_version['rev'] >= 20):
 			return OrcBuilder.orc_ext_new
 		else:
 			return OrcBuilder.orc_ext_old
