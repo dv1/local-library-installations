@@ -187,7 +187,7 @@ class Builder(object):
 		mkdir_p(builddir)
 		os.chdir(builddir)
 		success = True
-		success = success and (0 == ctx.call_with_env('meson -Dprefix="%s" %s' % (ctx.inst_dir, extra_config), 'export CFLAGS="$CFLAGS %s" ; export CXXFLAGS="$CXXFLAGS %s" ' % (extra_cxxflags, extra_cxxflags)))
+		success = success and (0 == ctx.call_with_env('meson -Dprefix="%s" -Dlibdir=lib %s' % (ctx.inst_dir, extra_config), 'export CFLAGS="$CFLAGS %s" ; export CXXFLAGS="$CXXFLAGS %s" ' % (extra_cxxflags, extra_cxxflags)))
 		success = success and (0 == ctx.call_with_env('ninja "-j%d"' % ctx.num_jobs))
 		success = success and (0 == ctx.call_with_env('ninja install "-j%d"' % ctx.num_jobs))
 		os.chdir(olddir)
