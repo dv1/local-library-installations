@@ -51,9 +51,11 @@ class Context:
 		# * Use environment variable to pass on the rootdir
 		#   instead of script arguments
 		if extra_cmds:
-			retval = subprocess.call('ROOTDIR="%s" . "%s/env.sh" ; %s ; %s' % (self.rootdir, self.rootdir, extra_cmds, cmd), shell = True)
+			cmdline = 'ROOTDIR="%s" . "%s/env.sh" ; %s ; %s' % (self.rootdir, self.rootdir, extra_cmds, cmd)
 		else:
-			retval = subprocess.call('ROOTDIR="%s" . "%s/env.sh" ; %s' % (self.rootdir, self.rootdir, cmd), shell = True)
+			cmdline = 'ROOTDIR="%s" . "%s/env.sh" ; %s' % (self.rootdir, self.rootdir, cmd)
+		msg("Executing: " + cmdline)
+		retval = subprocess.call(cmdline, shell = True)
 		return retval
 
 	def checked_rm(self, options, filelist):
