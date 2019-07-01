@@ -930,8 +930,20 @@ for s in args.pkgs_to_build:
 	pkg = s[0:delimiter_pos]
 	version = s[delimiter_pos+1:]
 	packages += [[pkg, version]]
-	print('package: "%s" version: "%s"' % (pkg, version))
 
+invalid_packages_found = False
+for pkg in packages:
+	package_name = pkg[0]
+	package_version = pkg[1]
+	try:
+		package_builder = ctx.package_builders[package_name]
+		print('package: "%s" version: "%s"' % (package_name, package_version))
+	except KeyError:
+		error('invalid package "%s"' % package_name)
+		invalid_packages_found = True
+if invalid_packages_found:
+	error('invalid packages specified - cannot continue')
+	sys.exit(1)
 
 for pkg in packages:
 	ctx.build_package(pkg[0], pkg[1])
