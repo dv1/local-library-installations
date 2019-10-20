@@ -323,9 +323,9 @@ class GStreamer10Builder(Builder):
 			for pkg in GStreamer10Builder.pkgs:
 				basename = '{}-{}'.format(pkg, package_version)
 				msg('GStreamer 1.0: building ' + basename, 4)
-				extra_config = '-Dexamples=disabled'
+				extra_config = '-Dexamples=disabled -Dgtk_doc=disabled'
 				if pkg == 'gst-plugins-bad':
-					extra_config += ' -Ddirectfb=disabled -Dmodplug=disabled'
+					extra_config += ' -Ddirectfb=disabled -Dmodplug=disabled -Dopenexr=disabled'
 
 				if not self.do_meson_ninja_build(basename = basename, extra_config = extra_config, staging_subdir = 'gstreamer1.0'):
 					return False
