@@ -201,6 +201,8 @@ class Builder(object):
 		os.makedirs(builddir)
 		os.chdir(builddir)
 		meson_cmdline = 'CFLAGS="$CFLAGS {}" CXXFLAGS="$CXXFLAGS {}" meson -Dprefix="{}" -Dlibdir=lib {}'.format(extra_cflags, extra_cxxflags, ctx.inst_dir, extra_config)
+		with open(os.path.join(builddir, 'config-cmdline.log'), 'w') as f:
+			f.write(meson_cmdline + '\n')
 		success = True
 		success = success and (0 == ctx.call_with_env(meson_cmdline))
 		success = success and (0 == ctx.call_with_env('ninja "-j{}"'.format(ctx.num_jobs)))
