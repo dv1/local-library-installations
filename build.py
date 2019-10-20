@@ -200,8 +200,9 @@ class Builder(object):
 			shutil.rmtree(builddir)
 		os.makedirs(builddir)
 		os.chdir(builddir)
+		meson_cmdline = 'CFLAGS="$CFLAGS {}" CXXFLAGS="$CXXFLAGS {}" meson -Dprefix="{}" -Dlibdir=lib {}'.format(extra_cflags, extra_cxxflags, ctx.inst_dir, extra_config)
 		success = True
-		success = success and (0 == ctx.call_with_env('meson -Dprefix="{}" -Dlibdir=lib {}'.format(ctx.inst_dir, extra_config), 'export CFLAGS="$CFLAGS {}" ; export CXXFLAGS="$CXXFLAGS {}" '.format(extra_cxxflags, extra_cxxflags)))
+		success = success and (0 == ctx.call_with_env(meson_cmdline))
 		success = success and (0 == ctx.call_with_env('ninja "-j{}"'.format(ctx.num_jobs)))
 		success = success and (0 == ctx.call_with_env('ninja install "-j{}"'.format(ctx.num_jobs)))
 		os.chdir(olddir)
