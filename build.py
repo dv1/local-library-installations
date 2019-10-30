@@ -996,6 +996,93 @@ class FFmpegBuilder(Builder):
 
 
 
+class AOMBuilder(Builder):
+	git_source="https://aomedia.googlesource.com/aom"
+
+	def __init__(self, ctx):
+		super(AOMBuilder, self).__init__(ctx)
+
+	def desc(self):
+		return "libaom AV1 codec implementation"
+
+	def fetch(self, ctx, package_version):
+		basename = 'aom-{}'.format(package_version)
+		if package_version == 'git':
+			if not self.clone_git_repo(AOMBuilder.git_source, basename):
+				return False
+		else:
+			error('Only git-based pipewire builds are currently supported')
+			return
+		return True
+
+	def check(self, ctx, package_version):
+		return True
+
+	def unpack(self, ctx, package_version):
+		return True
+
+	def build(self, ctx, package_version):
+		basename = 'aom-{}'.format(package_version)
+
+		olddir = os.getcwd()
+		staging = os.path.join(ctx.staging_dir, basename, 'aom_build')
+		mkdir_p(staging)
+		os.chdir(staging)
+
+		success = True
+		success = success and (0 == ctx.call_with_env('cmake .. -DBUILD_SHARED_LIBS=1 -DCMAKE_INSTALL_PREFIX="{}"'.format(ctx.inst_dir), 'export CFLAGS="$CFLAGS {0}" ; export CXXFLAGS="$CXXFLAGS {0}" '.format('-fPIC -DPIC')))
+		success = success and (0 == ctx.call_with_env('make "-j{}"'.format(ctx.num_jobs)))
+		success = success and (0 == ctx.call_with_env('make install "-j{}"'.format(ctx.num_jobs)))
+
+		os.chdir(olddir)
+
+		return success
+
+
+
+class Dav1dBuilder(Builder):
+	dav1d_source="https://code.videolan.org/videolan/dav1d/-/archive"
+	git_source="https://code.videolan.org/videolan/dav1d.git"
+	dav1d_ext="tar.bz2"
+
+	def __init__(self, ctx):
+		super(Dav1dBuilder, self).__init__(ctx)
+
+	def desc(self):
+		return "dav1d AV1 decoder"
+
+	def fetch(self, ctx, package_version):
+		basename = 'dav1d-{}'.format(package_version)
+		if package_version == 'git':
+			if not self.clone_git_repo(Dav1dBuilder.git_source, basename):
+				return False
+		else:
+			archive_filename = basename + '.' + Dav1dBuilder.dav1d_ext
+			archive_link = Dav1dBuilder.dav1d_source + '/' + package_version + '/' + archive_filename
+			archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+
+			if not self.fetch_package_file(archive_filename, archive_dest, None, archive_link, None):
+				return False
+		return True
+
+	def check(self, ctx, package_version):
+		return True
+
+	def unpack(self, ctx, package_version):
+		if package_version == 'git':
+			return True
+		basename = 'dav1d-{}'.format(package_version)
+		archive_filename = basename + '.' + Dav1dBuilder.dav1d_ext
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+
+		return self.unpack_package(basename, archive_dest)
+
+	def build(self, ctx, package_version):
+		basename = 'dav1d-{}'.format(package_version)
+		return self.do_meson_ninja_build(basename = basename)
+
+
+
 
 rootdir = os.path.dirname(os.path.realpath(__file__))
 ctx = Context(rootdir)
@@ -1014,6 +1101,8 @@ ctx.package_builders['boost'] = BoostBuilder(ctx)
 ctx.package_builders['libnice'] = LibniceBuilder(ctx)
 ctx.package_builders['pipewire'] = PipewireBuilder(ctx)
 ctx.package_builders['ffmpeg'] = FFmpegBuilder(ctx)
+ctx.package_builders['aom'] = AOMBuilder(ctx)
+ctx.package_builders['dav1d'] = Dav1dBuilder(ctx)
 
 
 desc_lines = ['supported packages:']
