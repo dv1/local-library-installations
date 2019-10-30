@@ -338,7 +338,7 @@ class GStreamer10Builder(Builder):
 				msg('GStreamer 1.0: building ' + basename, 4)
 				extra_config = '--disable-examples'
 				if pkg == 'gst-plugins-bad':
-					extra_config += ' --disable-directfb --disable-modplug'
+					extra_config += ' --disable-directfb --disable-modplug -Dopenexr=disabled'
 				elif pkg == 'gstreamer':
 					extra_config += ' --with-bash-completion-dir=' + ctx.inst_dir
 
