@@ -104,10 +104,11 @@ class Builder(object):
 			msg('{} present - downloading skipped'.format(filename))
 		else:
 			msg('{} not present - downloading from {}'.format(filename, link))
-			if 0 != subprocess.call('wget -c "{}" -O "{}"'.format(link, dest), shell = True):
+			wget_cmdline = 'wget -c -nc "{}" -O "{}"'
+			if 0 != subprocess.call(wget_cmdline.format(link, dest), shell = True):
 				return False
 			if (dest_hash != None) and (link_hash != None):
-				if 0 != subprocess.call('wget -c "{}" -O "{}"'.format(link_hash, dest_hash), shell = True):
+				if 0 != subprocess.call(wget_cmdline.format(link_hash, dest_hash), shell = True):
 					return False
 		return True
 
