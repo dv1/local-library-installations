@@ -266,6 +266,9 @@ class GStreamer10Builder(Builder):
 		"gst-plugins-ugly", \
 		"gst-libav", \
 		"gst-rtsp-server", \
+		"gstreamer-vaapi", \
+		"gst-python", \
+		"gst-omx", \
 	]
 	pkg_source = "https://gstreamer.freedesktop.org/src"
 	git_source = "git://anongit.freedesktop.org/gstreamer"
@@ -330,6 +333,8 @@ class GStreamer10Builder(Builder):
 				extra_config = '-Dexamples=disabled -Dgtk_doc=disabled'
 				if pkg == 'gst-plugins-bad':
 					extra_config += ' -Ddirectfb=disabled -Dmodplug=disabled -Dopenexr=disabled'
+				elif pkg == 'gst-omx':
+					extra_config += ' -Dtarget=bellagio'
 
 				if not self.do_meson_ninja_build(basename = basename, extra_config = extra_config, staging_subdir = 'gstreamer1.0'):
 					return False
@@ -342,6 +347,8 @@ class GStreamer10Builder(Builder):
 					extra_config += ' --disable-directfb --disable-modplug -Dopenexr=disabled'
 				elif pkg == 'gstreamer':
 					extra_config += ' --with-bash-completion-dir=' + ctx.inst_dir
+				elif pkg == 'gst-omx':
+					extra_config += ' --with-omx-target=bellagio'
 
 				if not self.do_config_make_build(basename = basename, use_autogen = (package_version == 'git'), extra_config = extra_config, staging_subdir = 'gstreamer1.0'):
 					return False
