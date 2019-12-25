@@ -568,7 +568,7 @@ class VPXBuilder(Builder):
 class OrcBuilder(Builder):
 	# Beginning with version 0.4.23, Orc uses
 	# xz instead of gzip for the tarballs
-	orc_source="http://gstreamer.freedesktop.org/src/orc"
+	orc_source="https://gstreamer.freedesktop.org/src/orc"
 	orc_ext_old="tar.gz"
 	orc_ext_new="tar.xz"
 
