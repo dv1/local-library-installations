@@ -1113,8 +1113,8 @@ for i in ctx.package_builders.keys():
 desc_lines += ['', 'Example call: {} -p orc=0.4.17 gstreamer-1.0=1.1.1'.format(sys.argv[0])]
 
 parser = argparse.ArgumentParser(description = '\n'.join(desc_lines), formatter_class = argparse.RawTextHelpFormatter)
-parser.add_argument('-j', dest = 'num_jobs', metavar = 'JOBS', type = int, action = 'store', default = 1, help = 'Specifies the number of jobs to run simultaneously when compiling')
-parser.add_argument('-p', dest = 'pkgs_to_build', metavar = 'PKG=VERSION', type = str, action = 'store', default = [], nargs = '*', help = 'Package(s) to build; VERSION is either a valid version number, or "git", in which case sources are fetched from git upstream instead')
+parser.add_argument('-j', '--jobs', dest = 'num_jobs', metavar = 'JOBS', type = int, action = 'store', default = 1, help = 'Specifies the number of jobs to run simultaneously when compiling')
+parser.add_argument('-p', '--packages', dest = 'pkgs_to_build', metavar = 'PKG=VERSION', type = str, action = 'store', default = [], nargs = '*', help = 'Package(s) to build; VERSION is either a valid version number, or "git", in which case sources are fetched from git upstream instead')
 
 if len(sys.argv) == 1:
 	parser.print_help()
