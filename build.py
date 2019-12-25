@@ -36,6 +36,7 @@ class Context:
 		self.inst_dir = os.path.join(self.rootdir, 'installation')
 		self.allowed_paths = [self.dl_dir, self.staging_dir, self.inst_dir]
 		self.num_jobs = 1
+		self.local_git = False
 		self.package_builders = {}
 		mkdir_p(self.dl_dir)
 		mkdir_p(self.staging_dir)
@@ -159,6 +160,20 @@ class Builder(object):
 			mkdir_p(unpack_rootdir)
 			if 0 != subprocess.call('tar xf "{}" -C "{}"'.format(dest, unpack_rootdir), shell = True):
 				return False
+
+			if self.ctx.local_git:
+				msg('Creating local git repository')
+				local_git_repo_dir = os.path.join(staging, '.git')
+				if not os.path.exists(local_git_repo_dir):
+					olddir = os.getcwd()
+					os.chdir(staging)
+					success = True
+					success = success and (0 == subprocess.call('git init', shell = True))
+					success = success and (0 == subprocess.call('git add .', shell = True))
+					success = success and (0 == subprocess.call('git commit -asm "Initial commit"', shell = True))
+					os.chdir(olddir)
+					if not success:
+						return False
 		return True
 
 	def do_config_make_build(self, basename, use_autogen, extra_config = '', extra_cflags = '', extra_cxxflags = '', staging_subdir = '', noconfigure = True, use_noconfig_env = False):
@@ -1122,6 +1137,7 @@ desc_lines += ['', 'Example call: {} -p orc=0.4.17 gstreamer-1.0=1.1.1'.format(s
 parser = argparse.ArgumentParser(description = '\n'.join(desc_lines), formatter_class = argparse.RawTextHelpFormatter)
 parser.add_argument('-j', '--jobs', dest = 'num_jobs', metavar = 'JOBS', type = int, action = 'store', default = 1, help = 'Specifies the number of jobs to run simultaneously when compiling')
 parser.add_argument('-p', '--packages', dest = 'pkgs_to_build', metavar = 'PKG=VERSION', type = str, action = 'store', default = [], nargs = '*', help = 'Package(s) to build; VERSION is either a valid version number, or "git", in which case sources are fetched from git upstream instead')
+parser.add_argument('-g', '--local-git', dest = 'local_git', action = 'store_true', help = 'When building from tarballs instead of from a git repository, create a local git repository (or multiple repositories if the package is made of sub-packages, like GStreamer); useful for tracking local modifications')
 
 if len(sys.argv) == 1:
 	parser.print_help()
@@ -1129,6 +1145,7 @@ if len(sys.argv) == 1:
 args = parser.parse_args()
 
 ctx.num_jobs = args.num_jobs
+ctx.local_git = args.local_git
 
 packages = []
 
