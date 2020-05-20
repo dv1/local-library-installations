@@ -696,7 +696,19 @@ class GLibBuilder(Builder):
 
 	def build(self, ctx, package_version):
 		basename = 'glib-{}'.format(package_version)
-		return self.do_config_make_build(basename = basename, use_autogen = False) and self.do_make_install(basename)
+		glib_version = self.get_glib_version(package_version)
+		if (glib_version['major'] >= 2) and (glib_version['minor'] >= 57) and (glib_version['rev'] >= 2):
+			return self.do_meson_ninja_build(basename = basename)
+		else:
+			return self.do_config_make_build(basename = basename, use_autogen = False) and self.do_make_install(basename)
+
+	def get_glib_version(self, package_version):
+		import re
+		ver_match = re.match('(\d*)\.(\d*)\.(\d*)', package_version)
+		if not ver_match:
+			error('Version "{}" did not match the pattern "X.Y.Z"'.format(package_version))
+			return None
+		return { 'major': int(ver_match.group(1)), 'minor': int(ver_match.group(2)), 'rev': int(ver_match.group(3)) }
 
 
 
