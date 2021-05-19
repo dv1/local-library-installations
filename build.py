@@ -974,6 +974,49 @@ class PipewireBuilder(Builder):
 		return self.do_meson_ninja_build(basename = basename, extra_config = extra_config)
 
 
+class WireplumberBuilder(Builder):
+	wireplumber_source="https://gitlab.freedesktop.org/pipewire/wireplumber/-/archive"
+	git_source="https://gitlab.freedesktop.org/pipewire/wireplumber.git"
+	wireplumber_ext="tar.bz2"
+
+	def __init__(self, ctx):
+		super(WireplumberBuilder, self).__init__(ctx)
+
+	def desc(self):
+		return "Session / policy manager implementation for PipeWire"
+
+	def fetch(self, ctx, package_version):
+		basename = 'wireplumber-{}'.format(package_version)
+		if package_version == 'git':
+			if not self.clone_git_repo(WireplumberBuilder.git_source, basename):
+				return False
+		else:
+			archive_filename = basename + '.' + WireplumberBuilder.wireplumber_ext
+			archive_link = WireplumberBuilder.wireplumber_source + '/' + package_version + '/' + archive_filename
+			archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+
+			if not self.fetch_package_file(archive_filename, archive_dest, None, archive_link, None):
+				return False
+		return True
+
+	def check(self, ctx, package_version):
+		return True
+
+	def unpack(self, ctx, package_version):
+		if package_version == 'git':
+			return True
+		basename = 'wireplumber-{}'.format(package_version)
+		archive_filename = basename + '.' + WireplumberBuilder.wireplumber_ext
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+
+		return self.unpack_package(basename, archive_dest)
+
+	def build(self, ctx, package_version):
+		basename = 'wireplumber-{}'.format(package_version)
+		extra_config = '-Dsystemd=disabled -Dsystem-lua=true -Dudev=disabled'
+		return self.do_meson_ninja_build(basename = basename, extra_config = extra_config)
+
+
 class FFmpegBuilder(Builder):
 	ffmpeg_source="https://ffmpeg.org/releases"
 	git_source="https://git.ffmpeg.org/ffmpeg.git"
@@ -1164,6 +1207,7 @@ ctx.package_builders['soup'] = SoupBuilder(ctx)
 ctx.package_builders['boost'] = BoostBuilder(ctx)
 ctx.package_builders['libnice'] = LibniceBuilder(ctx)
 ctx.package_builders['pipewire'] = PipewireBuilder(ctx)
+ctx.package_builders['wireplumber'] = WireplumberBuilder(ctx)
 ctx.package_builders['ffmpeg'] = FFmpegBuilder(ctx)
 ctx.package_builders['aom'] = AOMBuilder(ctx)
 ctx.package_builders['dav1d'] = Dav1dBuilder(ctx)
