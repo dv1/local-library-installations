@@ -970,20 +970,8 @@ class PipewireBuilder(Builder):
 
 	def build(self, ctx, package_version):
 		basename = 'pipewire-{}'.format(package_version)
-
-		olddir = os.getcwd()
-		staging = os.path.join(ctx.staging_dir, basename, 'build')
-		mkdir_p(staging)
-		os.chdir(staging)
-
-		success = True
-		success = success and (0 == ctx.call_with_env('meson .. -Dsystemd=disabled -Dpipewire-jack=disabled -Djack=disabled -Dudev=disabled -Dprefix="{}" -Dudevrulesdir="{}" -Dlibdir=lib'.format(ctx.inst_dir, ctx.inst_dir + '/lib/udev/rules.d')))
-		success = success and (0 == ctx.call_with_env('ninja'))
-		success = success and (0 == ctx.call_with_env('ninja install'))
-
-		os.chdir(olddir)
-
-		return success
+		extra_config = '-Dsystemd=disabled -Dpipewire-jack=disabled -Djack=disabled -Dudev=disabled -Dudevrulesdir="{}"'.format(ctx.inst_dir + '/lib/udev/rules.d')
+		return self.do_meson_ninja_build(basename = basename, extra_config = extra_config)
 
 
 class FFmpegBuilder(Builder):
