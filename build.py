@@ -932,7 +932,9 @@ class LibniceBuilder(Builder):
 
 
 class PipewireBuilder(Builder):
+	pipewire_source="https://gitlab.freedesktop.org/pipewire/pipewire/-/archive"
 	git_source="https://github.com/PipeWire/pipewire.git"
+	pipewire_ext="tar.bz2"
 
 	def __init__(self, ctx):
 		super(PipewireBuilder, self).__init__(ctx)
@@ -946,17 +948,25 @@ class PipewireBuilder(Builder):
 			if not self.clone_git_repo(PipewireBuilder.git_source, basename):
 				return False
 		else:
-			error('Only git-based pipewire builds are currently supported')
-			return
+			archive_filename = basename + '.' + PipewireBuilder.pipewire_ext
+			archive_link = PipewireBuilder.pipewire_source + '/' + package_version + '/' + archive_filename
+			archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+
+			if not self.fetch_package_file(archive_filename, archive_dest, None, archive_link, None):
+				return False
 		return True
 
 	def check(self, ctx, package_version):
-		if package_version == 'git':
-			return True
+		return True
 
 	def unpack(self, ctx, package_version):
 		if package_version == 'git':
 			return True
+		basename = 'pipewire-{}'.format(package_version)
+		archive_filename = basename + '.' + PipewireBuilder.pipewire_ext
+		archive_dest = os.path.join(ctx.dl_dir, archive_filename)
+
+		return self.unpack_package(basename, archive_dest)
 
 	def build(self, ctx, package_version):
 		basename = 'pipewire-{}'.format(package_version)
@@ -967,7 +977,7 @@ class PipewireBuilder(Builder):
 		os.chdir(staging)
 
 		success = True
-		success = success and (0 == ctx.call_with_env('meson .. -Dsystemd=false -Dprefix="{}" -Dlibdir=lib'.format(ctx.inst_dir)))
+		success = success and (0 == ctx.call_with_env('meson .. -Dsystemd=disabled -Dpipewire-jack=disabled -Djack=disabled -Dudev=disabled -Dprefix="{}" -Dudevrulesdir="{}" -Dlibdir=lib'.format(ctx.inst_dir, ctx.inst_dir + '/lib/udev/rules.d')))
 		success = success and (0 == ctx.call_with_env('ninja'))
 		success = success and (0 == ctx.call_with_env('ninja install'))
 
