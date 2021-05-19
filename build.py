@@ -1128,6 +1128,37 @@ class Dav1dBuilder(Builder):
 
 
 
+class OpenH264Builder(Builder):
+	git_source="https://github.com/cisco/openh264.git"
+
+	def __init__(self, ctx):
+		super(OpenH264Builder, self).__init__(ctx)
+
+	def desc(self):
+		return "OpenH264 h.h264 decoder"
+
+	def fetch(self, ctx, package_version):
+		basename = 'openh264-{}'.format(package_version)
+		if package_version == 'git':
+			if not self.clone_git_repo(OpenH264Builder.git_source, basename):
+				return False
+		else:
+			if not self.clone_git_repo(OpenH264Builder.git_source, basename, checkout = 'v{}'.format(package_version)):
+				return False
+		return True
+
+	def check(self, ctx, package_version):
+		return True
+
+	def unpack(self, ctx, package_version):
+		return True
+
+	def build(self, ctx, package_version):
+		basename = 'openh264-{}'.format(package_version)
+		return self.do_meson_ninja_build(basename = basename)
+
+
+
 
 rootdir = os.path.dirname(os.path.realpath(__file__))
 ctx = Context(rootdir)
@@ -1148,6 +1179,7 @@ ctx.package_builders['pipewire'] = PipewireBuilder(ctx)
 ctx.package_builders['ffmpeg'] = FFmpegBuilder(ctx)
 ctx.package_builders['aom'] = AOMBuilder(ctx)
 ctx.package_builders['dav1d'] = Dav1dBuilder(ctx)
+ctx.package_builders['openh264'] = OpenH264Builder(ctx)
 
 
 desc_lines = ['supported packages:']
