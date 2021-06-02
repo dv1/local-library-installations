@@ -897,7 +897,7 @@ class BoostBuilder(Builder):
 
 
 class LibniceBuilder(Builder):
-	libnice_source="https://nice.freedesktop.org/releases"
+	libnice_source="https://libnice.freedesktop.org/releases"
 	libnice_ext="tar.gz"
 
 	def __init__(self, ctx):
@@ -928,7 +928,20 @@ class LibniceBuilder(Builder):
 
 	def build(self, ctx, package_version):
 		basename = 'libnice-{}'.format(package_version)
-		return self.do_config_make_build(basename = basename, use_autogen = False, extra_config = '--enable-introspection=no --with-gstreamer') and self.do_make_install(basename)
+		libnice_version = self.parse_version(package_version)
+		if (libnice_version['major'] >= 0) and (libnice_version['minor'] >= 1) and (libnice_version['rev'] >= 18):
+			extra_config = '-Dintrospection=disabled -Dgstreamer=enabled'
+			return self.do_meson_ninja_build(basename = basename, extra_config = extra_config)
+		else:
+			return self.do_config_make_build(basename = basename, use_autogen = False, extra_config = '--enable-introspection=no --with-gstreamer') and self.do_make_install(basename)
+
+	def parse_version(self, package_version):
+		import re
+		ver_match = re.match('(\d*)\.(\d*)\.(\d*)', package_version)
+		if not ver_match:
+			error('Version "{}" did not match the pattern "X.Y.Z"'.format(package_version))
+			return None
+		return { 'major': int(ver_match.group(1)), 'minor': int(ver_match.group(2)), 'rev': int(ver_match.group(3)) }
 
 
 class PipewireBuilder(Builder):
