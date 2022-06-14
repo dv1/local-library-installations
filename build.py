@@ -283,9 +283,18 @@ class GStreamer10Builder(Builder):
 		"gst-omx", \
 	]
 	pkg_source = "https://gstreamer.freedesktop.org/src"
-	git_source = "git://anongit.freedesktop.org/gstreamer"
+	git_source = "https://gitlab.freedesktop.org/gstreamer/gstreamer.git"
 	pkg_ext = "tar.xz"
 	pkg_checksum = "sha256sum"
+	common_config_options = []
+	extra_config_options = {
+		'gstreamer': ['examples=disabled'],
+		'gst-plugins-base': ['examples=disabled'],
+		'gst-plugins-good': ['examples=disabled'],
+		'gst-plugins-bad': ['examples=disabled', 'gpl=disabled', 'directfb=disabled', 'modplug=disabled', 'openexr=disabled'],
+		'gst-plugins-ugly': ['gpl=disabled'],
+		'gst-omx': ['target=bellagio']
+	}
 
 	def __init__(self, ctx):
 		super(GStreamer10Builder, self).__init__(ctx)
@@ -294,14 +303,13 @@ class GStreamer10Builder(Builder):
 		return "GStreamer 1.0"
 
 	def fetch(self, ctx, package_version):
-		for pkg in GStreamer10Builder.pkgs:
-			basename = '{}-{}'.format(pkg, package_version)
-			msg('GStreamer 1.0: fetching ' + basename, 4)
-			if package_version == 'git':
-				git_link = GStreamer10Builder.git_source + '/' + pkg
-				if not self.clone_git_repo(git_link, basename, staging_subdir = 'gstreamer1.0'):
-					return False
-			else:
+		if package_version == 'git':
+			if not self.clone_git_repo(GStreamer10Builder.git_source, basename = 'gstreamer', checkout = 'main', staging_subdir = 'gstreamer1.0'):
+				return False
+		else:
+			for pkg in GStreamer10Builder.pkgs:
+				basename = '{}-{}'.format(pkg, package_version)
+				msg('GStreamer 1.0: fetching ' + basename, 4)
 				archive_filename = basename + '.' + GStreamer10Builder.pkg_ext
 				archive_link = GStreamer10Builder.pkg_source + '/' + pkg + '/' + archive_filename
 				archive_dest = os.path.join(ctx.dl_dir, archive_filename)
@@ -325,10 +333,10 @@ class GStreamer10Builder(Builder):
 		return True
 
 	def unpack(self, ctx, package_version):
-		for pkg in GStreamer10Builder.pkgs:
-			basename = '{}-{}'.format(pkg, package_version)
-			msg('GStreamer 1.0: unpacking ' + basename, 4)
-			if package_version != 'git':
+		if package_version != 'git':
+			for pkg in GStreamer10Builder.pkgs:
+				basename = '{}-{}'.format(pkg, package_version)
+				msg('GStreamer 1.0: unpacking ' + basename, 4)
 				archive_filename = basename + '.' + GStreamer10Builder.pkg_ext
 				archive_dest = os.path.join(ctx.dl_dir, archive_filename)
 				if not self.unpack_package(basename, archive_dest, staging_subdir = 'gstreamer1.0'):
@@ -336,17 +344,26 @@ class GStreamer10Builder(Builder):
 		return True
 
 	def build(self, ctx, package_version):
+		config_options = ['gtk_doc=disabled']
+		for pkg in GStreamer10Builder.pkgs:
+			config_options += [(pkg + ':' + x) for x in GStreamer10Builder.common_config_options]
+			try:
+				extra_options = GStreamer10Builder.extra_config_options[pkg]
+				config_options += [(pkg + ':' + x) for x in extra_options]
+			except KeyError:
+				pass
+		extra_config = ' '.join(['--wrap-mode=nofallback', '-Dlibnice=disabled', '-Dorc=disabled'] + [('-D' + x) for x in config_options])
+
 		if package_version != 'git':
 			gst_version = self.get_gst_version(package_version)
-		if (package_version == 'git') or ((gst_version['major'] >= 1) and (gst_version['minor'] >= 16) and (gst_version['rev'] >= 0)):
+
+		if (package_version == 'git'):
+			if not self.do_meson_ninja_build(basename = 'gstreamer', extra_config = extra_config, staging_subdir = 'gstreamer1.0'):
+				return False
+		elif (gst_version['major'] >= 1) and (gst_version['minor'] >= 16) and (gst_version['rev'] >= 0):
 			for pkg in GStreamer10Builder.pkgs:
 				basename = '{}-{}'.format(pkg, package_version)
 				msg('GStreamer 1.0: building ' + basename, 4)
-				extra_config = '-Dexamples=disabled -Dgtk_doc=disabled'
-				if pkg == 'gst-plugins-bad':
-					extra_config += ' -Ddirectfb=disabled -Dmodplug=disabled -Dopenexr=disabled'
-				elif pkg == 'gst-omx':
-					extra_config += ' -Dtarget=bellagio'
 
 				if not self.do_meson_ninja_build(basename = basename, extra_config = extra_config, staging_subdir = 'gstreamer1.0'):
 					return False
