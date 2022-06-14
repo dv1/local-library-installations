@@ -210,20 +210,17 @@ class Builder(object):
 	def do_meson_ninja_build(self, basename, extra_config = '', extra_cflags = '', extra_cxxflags = '', staging_subdir = '', build_subdir = 'build'):
 		staging = self.get_staging_dir(basename, staging_subdir)
 		builddir = os.path.join(staging, build_subdir)
-		olddir = os.getcwd()
 		if os.path.exists(builddir):
 			msg('Build subdirectory "{}" already exits; deleting to do a rebuild from scratch'.format(builddir))
 			shutil.rmtree(builddir)
 		os.makedirs(builddir)
-		os.chdir(builddir)
-		meson_cmdline = 'CFLAGS="$CFLAGS {}" CXXFLAGS="$CXXFLAGS {}" meson -Dprefix="{}" -Dlibdir=lib {}'.format(extra_cflags, extra_cxxflags, ctx.inst_dir, extra_config)
+		meson_setup_cmdline = 'CFLAGS="$CFLAGS {}" CXXFLAGS="$CXXFLAGS {}" meson setup --prefix "{}" --libdir lib {} {} {}'.format(extra_cflags, extra_cxxflags, ctx.inst_dir, extra_config, builddir, staging)
 		with open(os.path.join(builddir, 'config-cmdline.log'), 'w') as f:
-			f.write(meson_cmdline + '\n')
+			f.write(meson_setup_cmdline + '\n')
 		success = True
-		success = success and (0 == ctx.call_with_env(meson_cmdline))
-		success = success and (0 == ctx.call_with_env('ninja "-j{}"'.format(ctx.num_jobs)))
-		success = success and (0 == ctx.call_with_env('ninja install "-j{}"'.format(ctx.num_jobs)))
-		os.chdir(olddir)
+		success = success and (0 == ctx.call_with_env(meson_setup_cmdline))
+		success = success and (0 == ctx.call_with_env('meson compile -C "{}" "-j{}"'.format(builddir, ctx.num_jobs)))
+		success = success and (0 == ctx.call_with_env('meson install -C "{}"'.format(builddir)))
 		return success
 
 
