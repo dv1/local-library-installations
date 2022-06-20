@@ -1041,7 +1041,7 @@ class WireplumberBuilder(Builder):
 
 	def build(self, ctx, package_version):
 		basename = 'wireplumber-{}'.format(package_version)
-		extra_config = '-Dsystemd=disabled -Dsystem-lua=true -Dudev=disabled'
+		extra_config = '-Dsystemd=disabled -Dsystem-lua=true'
 		return self.do_meson_ninja_build(basename = basename, extra_config = extra_config)
 
 
