@@ -45,6 +45,7 @@ class Context:
 		mkdir_p(os.path.join(self.inst_dir, 'include'))
 		mkdir_p(os.path.join(self.inst_dir, 'lib', 'pkgconfig'))
 		mkdir_p(os.path.join(self.inst_dir, 'share', 'aclocal'))
+		mkdir_p(os.path.join(self.inst_dir, 'run'))
 
 	def call_with_env(self, cmd, extra_cmds = None):
 		# Avoid bashisms:
