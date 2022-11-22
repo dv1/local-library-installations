@@ -1217,6 +1217,36 @@ class OpenH264Builder(Builder):
 		return self.do_meson_ninja_build(basename = basename)
 
 
+class TinycompressBuilder(Builder):
+	git_source="https://github.com/alsa-project/tinycompress.git"
+
+	def __init__(self, ctx):
+		super(TinycompressBuilder, self).__init__(ctx)
+
+	def desc(self):
+		return "Userspace library for using the ALSA Compress-Offload API"
+
+	def fetch(self, ctx, package_version):
+		basename = 'tinycompress-{}'.format(package_version)
+		if package_version == 'git':
+			if not self.clone_git_repo(TinycompressBuilder.git_source, basename):
+				return False
+		else:
+			if not self.clone_git_repo(TinycompressBuilder.git_source, basename, checkout = 'v{}'.format(package_version)):
+				return False
+		return True
+
+	def check(self, ctx, package_version):
+		return True
+
+	def unpack(self, ctx, package_version):
+		return True
+
+	def build(self, ctx, package_version):
+		basename = 'tinycompress-{}'.format(package_version)
+		return self.do_config_make_build(basename = basename, use_autogen = True, extra_config = '--enable-fcplay --enable-pcm') and self.do_make_install(basename)
+
+
 
 
 rootdir = os.path.dirname(os.path.realpath(__file__))
@@ -1240,6 +1270,7 @@ ctx.package_builders['ffmpeg'] = FFmpegBuilder(ctx)
 ctx.package_builders['aom'] = AOMBuilder(ctx)
 ctx.package_builders['dav1d'] = Dav1dBuilder(ctx)
 ctx.package_builders['openh264'] = OpenH264Builder(ctx)
+ctx.package_builders['tinycompress'] = TinycompressBuilder(ctx)
 
 
 desc_lines = ['supported packages:']
