@@ -345,45 +345,72 @@ class GStreamer10Builder(Builder):
 		return True
 
 	def build(self, ctx, package_version):
-		config_options = ['gtk_doc=disabled']
-		for pkg in GStreamer10Builder.pkgs:
-			config_options += [(pkg + ':' + x) for x in GStreamer10Builder.common_config_options]
-			try:
-				extra_options = GStreamer10Builder.extra_config_options[pkg]
-				config_options += [(pkg + ':' + x) for x in extra_options]
-			except KeyError:
-				pass
-		extra_config = ' '.join(['--wrap-mode=nofallback', '-Dlibnice=disabled', '-Dorc=disabled'] + [('-D' + x) for x in config_options])
+		# Starting with version 1.16, GStreamer moved from Autotools to Meson as its build system.
+		# Also, GStreamer's git repository uses a monorepo model now, while releases continue to
+		# be made as per-package tarballs.
+		# For this reason, it is necessary to have two entirely separate branches, one to build
+		# from the git monorepo, another for building from release tarballs. In particular, this
+		# affects the configuration options; when building the monorepo, all options for all
+		# packages are prepended with the package name, then added to one single long list of
+		# config options that the monorepo is then built with. When building a release, the
+		# options are applied to each package individually.
+		# Furthermore, support for old <1.16 versions is also included.
 
-		if package_version != 'git':
-			gst_version = self.get_gst_version(package_version)
+		if package_version == 'git':
+			config_options = ['gtk_doc=disabled', 'libnice=disabled', 'orc=disabled']
+			for pkg in GStreamer10Builder.pkgs:
+				config_options += [(pkg + ':' + x) for x in GStreamer10Builder.common_config_options]
+				try:
+					extra_options = GStreamer10Builder.extra_config_options[pkg]
+					config_options += [(pkg + ':' + x) for x in extra_options]
+				except KeyError:
+					pass
 
-		if (package_version == 'git'):
+			extra_config = ' '.join(['--wrap-mode=nofallback'] + [('-D' + x) for x in config_options])
+
 			if not self.do_meson_ninja_build(basename = 'gstreamer', extra_config = extra_config, staging_subdir = 'gstreamer1.0'):
 				return False
-		elif (gst_version['major'] >= 1) and (gst_version['minor'] >= 16) and (gst_version['rev'] >= 0):
-			for pkg in GStreamer10Builder.pkgs:
-				basename = '{}-{}'.format(pkg, package_version)
-				msg('GStreamer 1.0: building ' + basename, 4)
-
-				if not self.do_meson_ninja_build(basename = basename, extra_config = extra_config, staging_subdir = 'gstreamer1.0'):
-					return False
 		else:
-			for pkg in GStreamer10Builder.pkgs:
-				basename = '{}-{}'.format(pkg, package_version)
-				msg('GStreamer 1.0: building ' + basename, 4)
-				extra_config = '--disable-examples'
-				if pkg == 'gst-plugins-bad':
-					extra_config += ' --disable-directfb --disable-modplug --disable-openexr'
-				elif pkg == 'gstreamer':
-					extra_config += ' --with-bash-completion-dir=' + ctx.inst_dir
-				elif pkg == 'gst-omx':
-					extra_config += ' --with-omx-target=bellagio'
+			gst_version = self.get_gst_version(package_version)
+			if (gst_version['major'] >= 1) and (gst_version['minor'] >= 16) and (gst_version['rev'] >= 0):
+				# Use Meson for building GStreamer versions >= 1.16.
+				for pkg in GStreamer10Builder.pkgs:
+					basename = '{}-{}'.format(pkg, package_version)
+					msg('GStreamer 1.0: building ' + basename, 4)
 
-				if not self.do_config_make_build(basename = basename, use_autogen = (package_version == 'git'), extra_config = extra_config, staging_subdir = 'gstreamer1.0'):
-					return False
-				if not self.do_make_install(basename, staging_subdir = 'gstreamer1.0'):
-					return False
+					config_options = []
+					if gst_version['minor'] == 16:
+						# This option got removed from release tarballs starting with GStreamer 1.18.
+						# The git monorepo has it to support some subprojects that still use gtk-doc.
+						config_options += ['gtk_doc=disabled']
+
+					try:
+						extra_options = GStreamer10Builder.extra_config_options[pkg]
+						config_options += extra_options
+					except KeyError:
+						pass
+
+					extra_config = ' '.join(['--wrap-mode=nofallback'] + [('-D' + x) for x in config_options])
+
+					if not self.do_meson_ninja_build(basename = basename, extra_config = extra_config, staging_subdir = 'gstreamer1.0'):
+						return False
+			else:
+				# Use Autotools for building GStreamer versions < 1.16.
+				for pkg in GStreamer10Builder.pkgs:
+					basename = '{}-{}'.format(pkg, package_version)
+					msg('GStreamer 1.0: building ' + basename, 4)
+					extra_config = '--disable-examples'
+					if pkg == 'gst-plugins-bad':
+						extra_config += ' --disable-directfb --disable-modplug --disable-openexr'
+					elif pkg == 'gstreamer':
+						extra_config += ' --with-bash-completion-dir=' + ctx.inst_dir
+					elif pkg == 'gst-omx':
+						extra_config += ' --with-omx-target=bellagio'
+
+					if not self.do_config_make_build(basename = basename, use_autogen = (package_version == 'git'), extra_config = extra_config, staging_subdir = 'gstreamer1.0'):
+						return False
+					if not self.do_make_install(basename, staging_subdir = 'gstreamer1.0'):
+						return False
 		return True
 
 	def get_gst_version(self, package_version):
