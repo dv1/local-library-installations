@@ -292,8 +292,8 @@ class GStreamer10Builder(Builder):
 		'gstreamer': ['examples=disabled'],
 		'gst-plugins-base': ['examples=disabled'],
 		'gst-plugins-good': ['examples=disabled'],
-		'gst-plugins-bad': ['examples=disabled', 'gpl=disabled', 'directfb=disabled', 'modplug=disabled', 'openexr=disabled'],
-		'gst-plugins-ugly': ['gpl=disabled'],
+		'gst-plugins-bad': ['examples=disabled', 'gpl=enabled', 'directfb=disabled', 'modplug=disabled', 'openexr=disabled'],
+		'gst-plugins-ugly': ['gpl=enabled'],
 		'gst-omx': ['target=bellagio']
 	}
 
@@ -357,7 +357,7 @@ class GStreamer10Builder(Builder):
 		# Furthermore, support for old <1.16 versions is also included.
 
 		if package_version == 'git':
-			config_options = ['gtk_doc=disabled', 'libnice=disabled', 'orc=disabled']
+			config_options = ['gtk_doc=disabled', 'libnice=disabled', 'orc=disabled', 'tests=enabled', 'gpl=enabled']
 			for pkg in GStreamer10Builder.pkgs:
 				config_options += [(pkg + ':' + x) for x in GStreamer10Builder.common_config_options]
 				try:
