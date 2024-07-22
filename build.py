@@ -1118,7 +1118,7 @@ class FFmpegBuilder(Builder):
 		os.chdir(staging)
 
 		success = True
-		success = success and (0 == ctx.call_with_env('./configure --enable-shared --disable-static --prefix="{}"'.format(ctx.inst_dir)))
+		success = success and (0 == ctx.call_with_env('./configure --enable-shared --disable-static --enable-libx264 --enable-encoder=libx264 --enable-gpl --enable-libdvdnav --enable-libdvdread --prefix="{}"'.format(ctx.inst_dir)))
 		success = success and (0 == ctx.call_with_env('make "-j{}"'.format(ctx.num_jobs)))
 		success = success and (0 == ctx.call_with_env('make install "-j{}"'.format(ctx.num_jobs)))
 
