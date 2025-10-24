@@ -1026,7 +1026,7 @@ class PipewireBuilder(Builder):
 	def build(self, ctx, package_version):
 		basename = 'pipewire-{}'.format(package_version)
                 # Turn off session managers since these are built by other builders in this script
-		extra_config = '-Dsystemd=disabled -Dpipewire-jack=disabled -Djack=disabled -Dudev=disabled -Dsession-managers="[]" -Dudevrulesdir="{}"'.format(ctx.inst_dir + '/lib/udev/rules.d')
+		extra_config = '-Dpipewire-jack=disabled -Djack=disabled -Dudev=disabled -Dsession-managers="[]" -Dudevrulesdir="{}"'.format(ctx.inst_dir + '/lib/udev/rules.d')
 		return self.do_meson_ninja_build(basename = basename, extra_config = extra_config)
 
 
