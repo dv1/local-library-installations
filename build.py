@@ -415,7 +415,7 @@ class GStreamer10Builder(Builder):
 
 	def get_gst_version(self, package_version):
 		import re
-		ver_match = re.match('(\d*)\.(\d*)\.(\d*)', package_version)
+		ver_match = re.match(r'(\d*)\.(\d*)\.(\d*)', package_version)
 		if not ver_match:
 			error('Version "{}" did not match the pattern "X.Y.Z"'.format(package_version))
 			return None
@@ -679,7 +679,7 @@ class OrcBuilder(Builder):
 
 	def get_orc_version(self, package_version):
 		import re
-		ver_match = re.match('(\d*)\.(\d*)\.(\d*)', package_version)
+		ver_match = re.match(r'(\d*)\.(\d*)\.(\d*)', package_version)
 		if not ver_match:
 			error('Version "{}" did not match the pattern "X.Y.Z"'.format(package_version))
 			return None
@@ -746,7 +746,7 @@ class GLibBuilder(Builder):
 
 	def get_glib_version(self, package_version):
 		import re
-		ver_match = re.match('(\d*)\.(\d*)\.(\d*)', package_version)
+		ver_match = re.match(r'(\d*)\.(\d*)\.(\d*)', package_version)
 		if not ver_match:
 			error('Version "{}" did not match the pattern "X.Y.Z"'.format(package_version))
 			return None
@@ -979,7 +979,7 @@ class LibniceBuilder(Builder):
 
 	def parse_version(self, package_version):
 		import re
-		ver_match = re.match('(\d*)\.(\d*)\.(\d*)', package_version)
+		ver_match = re.match(r'(\d*)\.(\d*)\.(\d*)', package_version)
 		if not ver_match:
 			error('Version "{}" did not match the pattern "X.Y.Z"'.format(package_version))
 			return None
